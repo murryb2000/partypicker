@@ -1,0 +1,74 @@
+name: Windows-EXE erstellen
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Quellcode laden
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Abhängigkeiten installieren
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pyinstaller==6.22.3
+
+      - name: PartyPicker.exe bauen
+        run: >-
+          python -m PyInstaller
+          --noconfirm
+          --clean
+          --windowed
+          --onefile
+          --name PartyPicker
+          --icon PartyPicker.ico
+          --add-data "PartyPicker.ico;."
+          --add-data "PartyPicker-icon.png;."
+          --collect-all soundfile
+          party_picker.py
+
+      - name: Veröffentlichungspaket erstellen
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path release -Force | Out-Null
+          Copy-Item dist/PartyPicker.exe release/PartyPicker.exe
+          Copy-Item README.txt release/README.txt
+          Copy-Item README_EN.txt release/README_EN.txt
+          Copy-Item LICENSE.txt release/LICENSE.txt
+          Copy-Item THIRD_PARTY_NOTICES.txt release/THIRD_PARTY_NOTICES.txt
+          Compress-Archive -Path release/* -DestinationPath PartyPicker-Windows.zip -Force
+
+      - name: Build zum Herunterladen bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: PartyPicker-Windows
+          path: PartyPicker-Windows.zip
+          if-no-files-found: error
+
+      - name: GitHub-Release erstellen
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: PartyPicker ${{ github.ref_name }}
+          body: |
+            Erste öffentliche Version von PartyPicker / Der Playlist-Generator.
+
+            Nach dem Download `PartyPicker-Windows.zip` vollständig entpacken und
+            `PartyPicker.exe` starten. Beim ersten Start kann Windows SmartScreen
+            wegen der fehlenden digitalen Signatur warnen.
+          files: PartyPicker-Windows.zip
