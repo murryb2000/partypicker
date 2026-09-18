@@ -1,0 +1,33 @@
+PartyPicker Freeware License 1.0
+================================
+
+Copyright (c) 2026 Frank Schwedat ("MurryB"). All rights reserved.
+
+Permission is granted, free of charge, to download and use PartyPicker for
+personal and non-commercial purposes.
+
+You may copy and redistribute the original, unmodified PartyPicker release
+package free of charge, provided that it remains complete and includes this
+license, the documentation, and all third-party notices.
+
+Without prior written permission from the copyright holder, you may not:
+
+- sell PartyPicker or charge a fee for providing it;
+- publish or distribute modified versions of PartyPicker;
+- remove or alter copyright, attribution, support, license, or third-party
+  notices; or
+- claim PartyPicker or its branding as your own work.
+
+The public availability of the source code permits inspection and the ordinary
+viewing or forking functions provided by the hosting platform. It does not
+grant additional rights to publish, distribute, sublicense, or sell modified
+versions.
+
+PartyPicker is provided "as is", without warranty of any kind, express or
+implied. To the maximum extent permitted by applicable law, the copyright
+holder shall not be liable for any claim, damage, or other liability arising
+from the software or its use.
+
+Third-party components are governed exclusively by their respective licenses.
+See THIRD_PARTY_NOTICES.txt. Where a mandatory law or a third-party license
+grants rights beyond this license, those rights remain unaffected.

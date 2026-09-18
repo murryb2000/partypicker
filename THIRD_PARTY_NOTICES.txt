@@ -1,0 +1,80 @@
+PARTYPICKER / Third-Party Notices
+=================================
+
+PartyPicker uses the following third-party software. The respective authors
+retain all copyrights in their software. This file is informational and does
+not replace the complete license texts supplied by the projects.
+
+PySide6 / Qt for Python
+-----------------------
+Copyright (C) The Qt Company Ltd. and other contributors.
+Community editions are available under the GNU Lesser General Public License
+version 3 (LGPL-3.0) and, for some components, the GNU General Public License.
+License information and source code:
+https://doc.qt.io/qtforpython-6/licenses.html
+https://code.qt.io/cgit/pyside/pyside-setup.git/
+
+NumPy
+-----
+Copyright (c) NumPy Developers.
+License: BSD 3-Clause License.
+License and source code:
+https://numpy.org/doc/stable/license.html
+https://github.com/numpy/numpy
+
+python-soundfile
+----------------
+Copyright (c) Erik C. de Castro Lopo and contributors.
+License: BSD 3-Clause License.
+License and source code:
+https://github.com/bastibe/python-soundfile
+
+libsndfile
+----------
+Copyright (C) Erik de Castro Lopo and contributors.
+License: GNU Lesser General Public License version 2.1 (LGPL-2.1).
+License and source code:
+https://github.com/libsndfile/libsndfile
+
+TinyTag
+-------
+Copyright (c) 2014-2026 Tom Wallroth, Mat (mathiascode), et al.
+License: MIT License.
+License and source code:
+https://github.com/tinytag/tinytag
+https://pypi.org/project/tinytag/
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+PyInstaller
+-----------
+Copyright (c) PyInstaller Development Team.
+License: GNU General Public License version 2 with a special exception that
+permits distributing executables produced by PyInstaller under the license
+chosen for the bundled application, subject to the exception's conditions.
+License and source code:
+https://pyinstaller.org/en/stable/license.html
+https://github.com/pyinstaller/pyinstaller
+
+PartyPicker does not use or bundle Mutagen.
+
+The exact versions included in a particular Windows executable are determined
+by requirements.txt and the packages installed when EXE_erstellen.bat is run.
+When publishing a newly built executable, keep this notice with the download
+and retain the license files collected by the build tool in its distribution.
