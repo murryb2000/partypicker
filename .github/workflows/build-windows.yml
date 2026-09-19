@@ -61,6 +61,12 @@ jobs:
           path: PartyPicker-Windows.zip
           if-no-files-found: error
 
+      - name: Bestehendes Release-Paket 1.1.0 aktualisieren
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload v1.1.0 PartyPicker-Windows.zip --clobber
+
       - name: GitHub-Release erstellen
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
