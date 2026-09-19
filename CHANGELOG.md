@@ -4,6 +4,8 @@
 
 - Vier umschaltbare, gespeicherte Tastaturbelegungen mit passender Kurzanleitung.
 - Startauswahl: neue Playlist oder letzte Playlist fortsetzen, einschließlich eigener TXT-Sitzungen.
+- Im Ziffernblock-Profil wechselt Strg+3 zum vorherigen Titel.
+- Die Versionsnummer wird klein neben dem Programmtitel angezeigt.
 
 ## 1.0.4 – 2026-09-19
 

@@ -10,7 +10,7 @@ if not exist ".venv\Scripts\python.exe" (
 if errorlevel 1 goto error
 .venv\Scripts\python.exe -m pip install pyinstaller==6.22.3
 if errorlevel 1 goto error
-.venv\Scripts\python.exe -m PyInstaller --noconfirm --clean --windowed --onefile --name PartyPicker --icon PartyPicker.ico --add-data "PartyPicker.ico;." --add-data "PartyPicker-icon.png;." --collect-all soundfile party_picker.py
+.venv\Scripts\python.exe -m PyInstaller --noconfirm --clean --windowed --onefile --name PartyPicker --icon PartyPicker.ico --add-data "PartyPicker.ico;." --add-data "PartyPicker-icon.png;." --add-data "VERSION;." --collect-all soundfile party_picker.py
 if errorlevel 1 goto error
 echo Fertig: dist\PartyPicker.exe
 echo Diese einzelne EXE kann weitergegeben und direkt gestartet werden.

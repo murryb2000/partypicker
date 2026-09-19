@@ -119,7 +119,7 @@ Verantwortung.
 
 NEU AB VERSION 1.1.0
 Tastaturbelegung unten auswählen: Strg+Pfeile, Pfeile, Hoch/Runter oder
-Ziffernblock (Num Lock: 1 = -10 s, 2 = +10 s, 3 = nächster Titel).
+Ziffernblock (Num Lock: 1 = -10 s, 2 = +10 s, 3 = nächster Titel, Strg+3 = vorheriger Titel).
 Die Kurzanleitung zeigt die aktive Belegung. Die Auswahl wird gespeichert.
 Beim Start: neue Playlist oder letzte Playlist fortsetzen. Beim ersten Start
 dieser Version zunächst eine Playlist öffnen oder speichern.

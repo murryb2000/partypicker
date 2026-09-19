@@ -134,7 +134,7 @@ for language, additions in {
            'keys_ctrl': '←/→: ±10 s · Strg+←/→: vorheriger/nächster Song',
            'keys_arrows': '←/→: vorheriger/nächster Song · Strg+←/→: ±10 s',
            'keys_vertical': '↑/↓: vorheriger/nächster Song · ←/→: ±10 s',
-           'keys_keypad': 'Ziffernblock (Num Lock): 1: −10 s · 2: +10 s · 3: nächster Song · Strg+←: vorheriger Song'},
+           'keys_keypad': 'Ziffernblock (Num Lock): 1: −10 s · 2: +10 s · 3: nächster Song · Strg+3: vorheriger Song'},
     'en': {'keyboard': 'Keyboard layout', 'profile_ctrl': 'Ctrl + right: next track',
            'profile_arrows': 'Right: next track', 'profile_vertical': 'Down: next track',
            'profile_keypad': 'Numeric keypad: 1 / 2 / 3', 'startup': 'How would you like to start?',
@@ -144,7 +144,7 @@ for language, additions in {
            'keys_ctrl': 'Left/Right: ±10 s · Ctrl+Left/Right: previous/next track',
            'keys_arrows': 'Left/Right: previous/next track · Ctrl+Left/Right: ±10 s',
            'keys_vertical': 'Up/Down: previous/next track · Left/Right: ±10 s',
-           'keys_keypad': 'Keypad (Num Lock): 1: −10 s · 2: +10 s · 3: next track · Ctrl+Left: previous track'},
+           'keys_keypad': 'Keypad (Num Lock): 1: −10 s · 2: +10 s · 3: next track · Ctrl+3: previous track'},
 }.items():
     TEXTS[language].update(additions)
 
@@ -153,6 +153,9 @@ def resource_path(name):
     """Resolve bundled assets both from source and a PyInstaller one-file EXE."""
     base = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
     return base / name
+
+
+APP_VERSION = resource_path('VERSION').read_text(encoding='utf-8').strip()
 
 
 class Scan(QThread):
@@ -329,12 +332,19 @@ class Window(QMainWindow):
         head_row.addWidget(self.logo)
         branding = QVBoxLayout()
         branding.setSpacing(2)
+        title_row = QHBoxLayout()
+        title_row.setSpacing(8)
         self.head = QLabel(self.t('window_title'))
         self.head.setWordWrap(False)
         self.head.setStyleSheet('font-size:22px; font-weight:bold;')
+        self.version_label = QLabel(f'Version {APP_VERSION}')
+        self.version_label.setStyleSheet('font-size:10px; color:#8fa4b8;')
+        title_row.addWidget(self.head)
+        title_row.addWidget(self.version_label, 0, Qt.AlignBottom)
+        title_row.addStretch()
         credit = QLabel('by MurryB')
         credit.setStyleSheet('font-size:11px; color:#8fa4b8;')
-        branding.addWidget(self.head)
+        branding.addLayout(title_row)
         branding.addWidget(credit)
         head_row.addLayout(branding, 1)
         self.language_label = QLabel(self.t('language'))
@@ -497,7 +507,10 @@ class Window(QMainWindow):
         if profile == 'keypad':
             bindings += [(QKeySequence(Qt.KeypadModifier | Qt.Key_1), lambda: self.jump(-10000)),
                          (QKeySequence(Qt.KeypadModifier | Qt.Key_2), lambda: self.jump(10000)),
-                         (QKeySequence(Qt.KeypadModifier | Qt.Key_3), lambda: self.step(1))]
+                         (QKeySequence(Qt.KeypadModifier | Qt.Key_3), lambda: self.step(1)),
+                         ('Ctrl+3', lambda: self.step(-1)),
+                         (QKeySequence(Qt.ControlModifier | Qt.KeypadModifier | Qt.Key_3),
+                          lambda: self.step(-1))]
         for key, callback in bindings:
             shortcut = QShortcut(key if isinstance(key, QKeySequence) else QKeySequence(key), self)
             shortcut.setAutoRepeat(False)
