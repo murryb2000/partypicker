@@ -1,4 +1,5 @@
 import os
+import json
 import sys
 from pathlib import Path
 import numpy as np
@@ -115,6 +116,37 @@ TEXTS = {
         'newline_unsupported': 'Line breaks in file names are not supported.',
     },
 }
+
+
+KEY_PROFILES = {
+    'ctrl': [('Left', -10000), ('Right', 10000)],
+    'arrows': [('Ctrl+Left', -10000), ('Ctrl+Right', 10000)],
+    'vertical': [('Left', -10000), ('Right', 10000)],
+    'keypad': [('Left', -10000), ('Right', 10000)],
+}
+for language, additions in {
+    'de': {'keyboard': 'Tastaturbelegung', 'profile_ctrl': 'Strg + rechts: nächster Song',
+           'profile_arrows': 'Rechts: nächster Song', 'profile_vertical': 'Unten: nächster Song',
+           'profile_keypad': 'Ziffernblock: 1 / 2 / 3', 'startup': 'Wie möchtest du starten?',
+           'resume': 'Letzte Playlist fortsetzen', 'later': 'Später auswählen',
+           'txt_changed': 'Die TXT-Liste wurde außerhalb der App geändert. Die gespeicherte Sitzung passt nicht mehr dazu.',
+           'keys_common': 'Leertaste: Play/Pause · A: aufnehmen · Enter (auch Ziffernblock): aufnehmen & weiter',
+           'keys_ctrl': '←/→: ±10 s · Strg+←/→: vorheriger/nächster Song',
+           'keys_arrows': '←/→: vorheriger/nächster Song · Strg+←/→: ±10 s',
+           'keys_vertical': '↑/↓: vorheriger/nächster Song · ←/→: ±10 s',
+           'keys_keypad': 'Ziffernblock (Num Lock): 1: −10 s · 2: +10 s · 3: nächster Song · Strg+←: vorheriger Song'},
+    'en': {'keyboard': 'Keyboard layout', 'profile_ctrl': 'Ctrl + right: next track',
+           'profile_arrows': 'Right: next track', 'profile_vertical': 'Down: next track',
+           'profile_keypad': 'Numeric keypad: 1 / 2 / 3', 'startup': 'How would you like to start?',
+           'resume': 'Continue last playlist', 'later': 'Choose later',
+           'txt_changed': 'The TXT list was changed outside the app. The saved session no longer matches it.',
+           'keys_common': 'Space: Play/Pause · A: add · Enter (including keypad): add & continue',
+           'keys_ctrl': 'Left/Right: ±10 s · Ctrl+Left/Right: previous/next track',
+           'keys_arrows': 'Left/Right: previous/next track · Ctrl+Left/Right: ±10 s',
+           'keys_vertical': 'Up/Down: previous/next track · Left/Right: ±10 s',
+           'keys_keypad': 'Keypad (Num Lock): 1: −10 s · 2: +10 s · 3: next track · Ctrl+Left: previous track'},
+}.items():
+    TEXTS[language].update(additions)
 
 
 def resource_path(name):
@@ -421,15 +453,83 @@ class Window(QMainWindow):
         body.setStretchFactor(1, 2)
         body.setSizes([650, 500])
         layout.addWidget(body, 1)
-        self.shortcuts_label = QLabel(self.t('shortcuts'))
+        keyboard_row = QHBoxLayout()
+        self.keyboard_label = QLabel(self.t('keyboard'))
+        self.keyboard_box = QComboBox()
+        for profile in KEY_PROFILES:
+            self.keyboard_box.addItem(self.t('profile_' + profile), profile)
+        saved_profile = self.settings.value('keyboard_profile', 'ctrl')
+        self.keyboard_box.setCurrentIndex(max(0, self.keyboard_box.findData(saved_profile)))
+        keyboard_row.addWidget(self.keyboard_label)
+        keyboard_row.addWidget(self.keyboard_box)
+        keyboard_row.addStretch()
+        layout.addLayout(keyboard_row)
+        self.shortcuts_label = QLabel()
+        self.shortcuts_label.setWordWrap(True)
         layout.addWidget(self.shortcuts_label)
-        for key, callback in [('Space', self.toggle), ('Left', lambda: self.jump(-10000)), ('Right', lambda: self.jump(10000)), ('Ctrl+Left', lambda: self.step(-1)), ('Ctrl+Right', lambda: self.step(1)), ('A', self.add), ('Return', lambda: self.add(True)), ('Enter', lambda: self.add(True))]:
-            shortcut = QShortcut(QKeySequence(key), self)
-            shortcut.activated.connect(callback)
+        self.keyboard_shortcuts = []
+        self.keyboard_box.currentIndexChanged.connect(self.configure_keyboard)
+        self.configure_keyboard()
         self.statusBar().showMessage(self.t('ready'))
 
     def t(self, key, **values):
         return TEXTS[self.lang][key].format(**values)
+
+    def update_keyboard_hint(self):
+        profile = self.keyboard_box.currentData()
+        self.shortcuts_label.setText(self.t('keys_' + profile) + '\n' + self.t('keys_common'))
+
+    def configure_keyboard(self):
+        for shortcut in self.keyboard_shortcuts:
+            shortcut.setEnabled(False)
+            shortcut.deleteLater()
+        self.keyboard_shortcuts.clear()
+        profile = self.keyboard_box.currentData()
+        self.settings.setValue('keyboard_profile', profile)
+        bindings = [('Space', self.toggle), ('A', self.add),
+                    ('Return', lambda: self.add(True)), ('Enter', lambda: self.add(True))]
+        bindings += [(key, lambda offset=offset: self.jump(offset))
+                     for key, offset in KEY_PROFILES[profile]]
+        previous, next_key = ('Left', 'Right') if profile == 'arrows' else ('Ctrl+Left', 'Ctrl+Right')
+        bindings += [(previous, lambda: self.step(-1)), (next_key, lambda: self.step(1))]
+        if profile == 'vertical':
+            bindings += [('Up', lambda: self.step(-1)), ('Down', lambda: self.step(1))]
+        if profile == 'keypad':
+            bindings += [(QKeySequence(Qt.KeypadModifier | Qt.Key_1), lambda: self.jump(-10000)),
+                         (QKeySequence(Qt.KeypadModifier | Qt.Key_2), lambda: self.jump(10000)),
+                         (QKeySequence(Qt.KeypadModifier | Qt.Key_3), lambda: self.step(1))]
+        for key, callback in bindings:
+            shortcut = QShortcut(key if isinstance(key, QKeySequence) else QKeySequence(key), self)
+            shortcut.setAutoRepeat(False)
+            shortcut.activated.connect(callback)
+            self.keyboard_shortcuts.append(shortcut)
+        self.update_keyboard_hint()
+
+    def remember_playlist(self):
+        session = {'path': str(self.playlist), 'entries': [str(p) for p in self.selected],
+                   'labels': self.text_cache if self.playlist.suffix.lower() == '.txt' else {}}
+        self.settings.setValue('last_playlist_session', json.dumps(session))
+        self.settings.sync()
+
+    def startup_choice(self):
+        try:
+            session = json.loads(self.settings.value('last_playlist_session', '{}'))
+        except (ValueError, TypeError):
+            session = {}
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle('PartyPicker')
+        dialog.setText(self.t('startup'))
+        new = dialog.addButton(self.t('new_playlist'), QMessageBox.ActionRole)
+        resume = dialog.addButton(self.t('resume'), QMessageBox.ActionRole)
+        resume.setEnabled(bool(session.get('path')))
+        dialog.addButton(self.t('later'), QMessageBox.RejectRole)
+        if session.get('path'):
+            dialog.setInformativeText(session['path'])
+        dialog.exec()
+        if dialog.clickedButton() is new:
+            self.new_playlist()
+        elif dialog.clickedButton() is resume:
+            self.load_playlist(session['path'], session)
 
     def change_language(self):
         self.lang = self.language_box.currentData()
@@ -459,7 +559,10 @@ class Window(QMainWindow):
         self.pane_labels[0].setText(self.t('folder_heading'))
         self.pane_labels[1].setText(self.t('playlist_heading'))
         self.remove_button.setText(self.t('remove'))
-        self.shortcuts_label.setText(self.t('shortcuts'))
+        self.keyboard_label.setText(self.t('keyboard'))
+        for index, profile in enumerate(KEY_PROFILES):
+            self.keyboard_box.setItemText(index, self.t('profile_' + profile))
+        self.update_keyboard_hint()
         playing = self.player.playbackState() == QMediaPlayer.PlayingState
         self.play_button.setText(self.t('pause') if playing else self.t('play'))
         if self.playlist is None:
@@ -522,6 +625,7 @@ class Window(QMainWindow):
         self.playlist, self.selected = Path(target), list(entries)
         self.selected_keys = {path_key(path) for path in self.selected}
         self.apply_playlist_change(ui_change)
+        self.remember_playlist()
         self.statusBar().showMessage(self.t('saved', path=self.playlist))
         if on_success:
             on_success()
@@ -577,14 +681,27 @@ class Window(QMainWindow):
             self, self.t('open_playlist_title'), '', self.t('open_playlist_filter'))
         if not name:
             return
+        self.load_playlist(name)
+
+    def load_playlist(self, name, session=None):
         try:
-            entries = read_playlist(name)
+            if Path(name).suffix.lower() == '.txt':
+                session = session or {}
+                entries = [Path(p) for p in session.get('entries', [])]
+                labels = session.get('labels', {})
+                expected = [labels[path_key(p)].replace('\r', ' ').replace('\n', ' ') for p in entries]
+                if Path(name).read_text(encoding='utf-8-sig').splitlines() != (expected or ['']):
+                    raise ValueError(self.t('txt_changed'))
+                self.text_cache.update(labels)
+            else:
+                entries = read_playlist(name)
         except Exception as exc:
             self.error(self.translate_core_error(str(exc)))
             return
         self.playlist, self.selected = Path(name), entries
         self.selected_keys = {path_key(path) for path in entries}
-        self.text_only.setChecked(False)
+        self.text_only.setChecked(Path(name).suffix.lower() == '.txt')
+        self.remember_playlist()
         self.refresh()
         self.show_latest_pick()
         self.statusBar().showMessage(self.t('playlist_loaded'))
@@ -829,6 +946,7 @@ def main():
     QSlider::handle:horizontal { background:#36dab5; width:14px; margin:-5px 0; border-radius:6px; }''')
     window = Window()
     window.showMaximized()
+    QTimer.singleShot(0, window.startup_choice)
     sys.exit(app.exec())
 
 if __name__ == '__main__':

@@ -101,3 +101,9 @@ covering third-party components.
 NOTICE
 ------
 PartyPicker is a private utility by MurryB. Use it at your own risk.
+
+NEW IN VERSION 1.1.0
+Choose a keyboard layout at the bottom: Ctrl+arrows, arrows, Up/Down, or
+numeric keypad (Num Lock: 1 = -10 s, 2 = +10 s, 3 = next track).
+The shortcut hints reflect your saved choice. On startup, create a new playlist
+or continue the last one. On first use, open or save a playlist to enable resume.

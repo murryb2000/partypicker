@@ -69,3 +69,14 @@ Die App startet maximiert und nutzt die verfügbare Bildschirmfläche; Taskleist
 Das PartyPicker-Symbol mit Kopfhörer, Waveform und Pluszeichen wird beim Erstellen in die EXE eingebettet und außerdem als Fenster- und Taskleistensymbol verwendet. Falls Windows nach einem Neubau noch das alte Symbol zeigt, handelt es sich meist um den Windows-Icon-Cache; ein neuer Dateiname oder ein Neustart des Windows-Explorers aktualisiert die Anzeige.
 
 Zum Aktualisieren: App schließen, ZIP entpacken und die enthaltenen Dateien in den bisherigen PartyPicker-Ordner kopieren/ersetzen. Die vorhandene .venv kann bleiben. Anschließend Starten.bat öffnen. Bei Nutzung einer selbst erstellten EXE danach EXE_erstellen.bat erneut ausführen.
+
+## Tastaturprofile und Startauswahl
+
+Unter den Listen lässt sich die Tastaturbelegung auswählen. Die Auswahl bleibt nach dem Neustart erhalten.
+
+- Strg+Pfeile: Titel wechseln; Pfeile: ±10 Sekunden.
+- Pfeile: Titel wechseln; Strg+Pfeile: ±10 Sekunden.
+- Hoch/Runter: vorheriger/nächster Titel; Links/Rechts: ±10 Sekunden.
+- Ziffernblock mit Num Lock: 1 = −10 Sekunden, 2 = +10 Sekunden, 3 = nächster Titel.
+
+Leertaste, A und beide Enter-Tasten behalten ihre Funktion. Beim Start kann eine neue Playlist angelegt oder die letzte fortgesetzt werden. Beim ersten Start dieser Version ist Fortsetzen erst verfügbar, nachdem eine Playlist geöffnet oder gespeichert wurde. Eigene TXT-Sitzungen werden anhand zusätzlich gespeicherter Musikpfade fortgesetzt; extern veränderte TXT-Listen werden dabei nicht überschrieben.

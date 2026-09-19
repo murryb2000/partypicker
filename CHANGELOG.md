@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.0
+
+- Vier umschaltbare, gespeicherte Tastaturbelegungen mit passender Kurzanleitung.
+- Startauswahl: neue Playlist oder letzte Playlist fortsetzen, einschließlich eigener TXT-Sitzungen.
+
 ## 1.0.4 – 2026-09-19
 
 - Titelwechsel nach abgeschlossener Waveform-Analyse repariert: Referenzen auf fertige Threads werden im GUI-Thread vor `deleteLater()` entfernt.
