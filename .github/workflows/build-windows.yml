@@ -39,6 +39,7 @@ jobs:
           --icon PartyPicker.ico
           --add-data "PartyPicker.ico;."
           --add-data "PartyPicker-icon.png;."
+          --add-data "VERSION;."
           --collect-all soundfile
           party_picker.py
 
@@ -66,7 +67,7 @@ jobs:
         with:
           name: PartyPicker ${{ github.ref_name }}
           body: |
-            Erste öffentliche Version von PartyPicker / Der Playlist-Generator.
+            Aktuelle Version von PartyPicker / Der Playlist-Generator.
 
             Nach dem Download `PartyPicker-Windows.zip` vollständig entpacken und
             `PartyPicker.exe` starten. Beim ersten Start kann Windows SmartScreen
