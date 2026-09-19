@@ -52,11 +52,12 @@ CONTROLS
 - Space: Play/Pause
 - Left/Right arrow: skip back/forward 10 seconds
 - Ctrl + Left/Right arrow: previous/next track
-- Enter: add the track to the playlist and continue
+- Enter or numeric keypad Enter: add the track to the playlist and continue
 - Double-click a track to play it
 - Arrow buttons below the playlist: move the selected entry
 - "Remove from playlist": delete the selected entry
 - "Include subfolders": also search nested music folders
+- Unreadable subfolders are skipped and reported after the scan
 
 
 PLAYLIST FORMATS
@@ -64,6 +65,10 @@ PLAYLIST FORMATS
 By default, PartyPicker creates an M3U playlist containing links to the
 original music files. It can be used in applications such as VirtualDJ. The
 FLAC and MP3 files must remain available at their original locations.
+
+Mapped Windows drives such as Z: retain that representation when saved. Saving,
+TXT metadata reading, and file availability checks run in the background so the
+interface remains responsive with long playlists or NAS storage.
 
 When "TXT file only" is selected before creating a playlist, PartyPicker saves
 a plain-text list in this format:

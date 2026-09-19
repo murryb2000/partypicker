@@ -21,11 +21,12 @@ Optional kann unter „Neue Playlist …“ die standardmäßig deaktivierte Aus
 - Vorheriger/Nächster: Buttons oder Strg+Pfeil links/rechts.
 - Zehn Sekunden zurück/vor: Buttons oder Pfeil links/rechts.
 - A: laufenden Titel hinzufügen und sofort speichern (Tastenkürzel).
-- „+ Playlist [Enter]“ / Enter: speichern und nächsten Titel starten. Der Button steht zwischen „+10 s“ und „Nächster“.
+- „+ Playlist [Enter]“ / Enter: speichern und nächsten Titel starten. Das funktioniert mit der normalen Eingabetaste und mit Enter auf dem Ziffernblock. Der Button steht zwischen „+10 s“ und „Nächster“.
 - Nach jeder neuen Aufnahme scrollt die Playlist automatisch zum zuletzt hinzugefügten Titel und markiert ihn. Dieses Verhalten gilt auch beim Öffnen einer vorhandenen M3U-Playlist.
 - Bereits enthaltene Dateipfade werden nicht doppelt aufgenommen. Andere Dateien desselben Songs gelten als eigenständige Titel.
 - Am Titelende automatisch zum nächsten Titel wechseln: abwählbar. Am Ordnerende stoppt die Wiedergabe.
 - Ein neuer Musikordner ersetzt nur die Durchhörliste. Die Party-Playlist bleibt bestehen.
+- Nicht lesbare Unterordner werden beim Scan übersprungen und anschließend gemeldet; bereits gefundene Titel bleiben nutzbar.
 - Titel in beiden Listen per Doppelklick anhören. Vorschau aus der Playlist beeinflusst die aktuelle Ordnerposition nicht.
 - Playlist-Titel auswählen, um sie zu entfernen oder mit ↑/↓ umzusortieren. Auch diese Änderungen werden sofort gespeichert.
 
@@ -33,9 +34,9 @@ Optional kann unter „Neue Playlist …“ die standardmäßig deaktivierte Aus
 
 M3U ist die Voreinstellung; M3U8 ist ebenfalls möglich. Beide werden als UTF-8-Text mit vollständigen lokalen Dateipfaden gespeichert. Die konkrete Unterstützung der Dateiendung .m3u8 wurde in VirtualDJ nicht verifiziert; verwende dort zunächst .m3u. Den gespeicherten Playlist-Ordner im VirtualDJ-Dateibrowser aufsuchen und die Playlist öffnen.
 
-Es werden nur Verweise gespeichert, keine Musikdateien kopiert. Musik muss unter denselben Pfaden erreichbar bleiben, auch bei NAS-Laufwerken und externen Datenträgern. Auf einem anderen PC müssen diese Pfade ebenfalls passen. Fehlende Dateien werden beim Import markiert und bleiben in der Playlist erhalten. Import unterstützt lokale absolute und relative Pfade, keine Streaming-URLs. Beim Speichern werden vorhandene Kommentare/EXTINF-Zusatzinformationen nicht übernommen.
+Es werden nur Verweise gespeichert, keine Musikdateien kopiert. Musik muss unter denselben Pfaden erreichbar bleiben, auch bei NAS-Laufwerken und externen Datenträgern. Auf einem anderen PC müssen diese Pfade ebenfalls passen. Gemappte Windows-Laufwerke wie `Z:` bleiben in dieser Darstellung erhalten und werden nicht absichtlich in UNC-Pfade umgewandelt. Fehlende Dateien werden beim Import markiert und bleiben in der Playlist erhalten. Import unterstützt lokale absolute und relative Pfade, keine Streaming-URLs. Beim Speichern werden vorhandene Kommentare/EXTINF-Zusatzinformationen nicht übernommen.
 
-Jede Änderung wird zunächst vollständig in eine temporäre Datei neben der Playlist geschrieben, dann wird die Playlist ersetzt. Bei Schreibfehlern erscheint eine Meldung; „+ Playlist [Enter]“ springt dann nicht weiter. Nicht gleichzeitig dieselbe Playlist mit einem anderen Programm bearbeiten.
+Jede Änderung wird außerhalb des GUI-Threads zunächst vollständig in eine temporäre Datei neben der Playlist geschrieben, mit `fsync` bestätigt und dann wird die Playlist ersetzt. Bei Schreibfehlern erscheint eine Meldung; „+ Playlist [Enter]“ springt dann nicht weiter. Artist-/Titel-Tags für TXT-Listen werden während der Sitzung zwischengespeichert. Dateistatus-Prüfungen und langsame Metadatenzugriffe blockieren dadurch nicht mehr die Oberfläche. Nicht gleichzeitig dieselbe Playlist mit einem anderen Programm bearbeiten.
 
 ## Optional: einzelne Windows-EXE erstellen
 

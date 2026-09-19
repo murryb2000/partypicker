@@ -62,11 +62,12 @@ BEDIENUNG
 - Leertaste: Play/Pause
 - Pfeil links/rechts: 10 Sekunden zurück/vor
 - Strg + Pfeil links/rechts: vorheriger/nächster Titel
-- Enter: Titel zur Playlist hinzufügen und weiterschalten
+- Enter oder Enter auf dem Ziffernblock: Titel zur Playlist hinzufügen und weiterschalten
 - Doppelklick auf einen Titel: Titel abspielen
 - Pfeile unter der Playlist: ausgewählten Eintrag verschieben
 - „Aus Playlist entfernen“: ausgewählten Eintrag löschen
 - „Unterordner einbeziehen“: durchsucht auch untergeordnete Musikordner
+- Nicht lesbare Unterordner werden übersprungen und nach dem Scan gemeldet
 
 
 M3U-PLAYLIST
@@ -76,6 +77,11 @@ die ursprünglichen Musikdateien und kann zum Beispiel in VirtualDJ verwendet
 werden. Die FLAC- und MP3-Dateien müssen an ihrem bisherigen Speicherort erreichbar
 bleiben. Beim Verschieben auf einen anderen PC müssen die gespeicherten Pfade
 ebenfalls stimmen.
+
+Gemappte Windows-Laufwerke wie Z: bleiben beim Speichern in dieser Darstellung
+erhalten. Speichern, TXT-Metadatenlesen und Dateistatus-Prüfungen laufen im
+Hintergrund, damit die Bedienoberfläche auch bei langen Playlists oder einem NAS
+reaktionsfähig bleibt.
 
 
 TXT-TITELLISTE

@@ -6,7 +6,17 @@ from tinytag import TinyTag
 
 
 def natural_key(path):
-    return [int(x) if x.isdigit() else x.casefold() for x in re.split(r'(\d+)', str(path))]
+    return [int(x) if x.isdecimal() else x.casefold() for x in re.split(r'(\d+)', str(path))]
+
+
+def absolute_path(path):
+    """Return an absolute path without resolving links or mapped drives."""
+    return Path(os.path.abspath(os.path.normpath(os.fspath(path))))
+
+
+def path_key(path):
+    """Create a fast lexical comparison key while preserving the stored path."""
+    return os.path.normcase(os.path.normpath(os.fspath(absolute_path(path))))
 
 
 def read_playlist(path):
@@ -17,6 +27,7 @@ def read_playlist(path):
     except UnicodeDecodeError:
         text = raw.decode('cp1252')
     entries = []
+    seen = set()
     for line in text.splitlines():
         line = line.strip()
         if not line or line.startswith('#'):
@@ -26,9 +37,11 @@ def read_playlist(path):
         p = Path(line)
         if not p.is_absolute():
             p = path.parent / p
-        p = p.resolve()
-        if p not in entries:
+        p = absolute_path(p)
+        key = path_key(p)
+        if key not in seen:
             entries.append(p)
+            seen.add(key)
     return entries
 
 
@@ -51,7 +64,7 @@ def save_playlist(path, entries):
     """Save an M3U playlist containing absolute local file paths."""
     lines = ['#EXTM3U']
     for p in entries:
-        value = str(Path(p).resolve())
+        value = str(absolute_path(p))
         if '\n' in value or '\r' in value:
             raise ValueError('Zeilenumbruch im Dateinamen wird nicht unterstützt.')
         lines.append(value)
@@ -74,7 +87,12 @@ def text_entry(path):
     return path.stem
 
 
-def save_text_playlist(path, entries):
+def save_text_playlist(path, entries, labels=None):
     """Save one human-readable Artist - Titel line per selected track."""
-    lines = [text_entry(p).replace('\r', ' ').replace('\n', ' ') for p in entries]
+    labels = labels or {}
+    lines = []
+    for p in entries:
+        key = path_key(p)
+        value = labels[key] if key in labels else text_entry(p)
+        lines.append(value.replace('\r', ' ').replace('\n', ' '))
     _write_lines(path, lines)

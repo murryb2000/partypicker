@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.3 – 2026-09-19
+
+- Die natürliche Sortierung behandelt nur noch dezimale Ziffern als Zahlen und bleibt bei ungewöhnlichen Unicode-Zeichen robust.
+- Beendete Scan-, Speicher-, Prüf- und Waveform-Threads werden mit `deleteLater()` freigegeben.
+
+## 1.0.2 – 2026-09-19
+
+- Nicht lesbare Unterordner werden beim Musikscan übersprungen, ohne bereits gefundene Titel zu verwerfen.
+- Playlist-Speicherung, `fsync` und das Lesen von TXT-Metadaten laufen außerhalb des GUI-Threads.
+- Gelesene Artist-/Titel-Metadaten werden während der Sitzung zwischengespeichert.
+- Die Playlist-Anzeige wird nach Änderungen nur noch gezielt aktualisiert; Dateistatus-Prüfungen laufen im Hintergrund.
+- M3U-Pfade behalten ihre Laufwerksdarstellung; `Path.resolve()` wird beim Import und Speichern nicht mehr verwendet.
+- Die Duplikatprüfung verwendet einen separaten, schnellen und unter Windows nicht zwischen Groß-/Kleinschreibung unterscheidenden Vergleichsschlüssel.
+
+## 1.0.1 – 2026-09-18
+
+- Enter auf dem Ziffernblock führt jetzt ebenfalls „+ Playlist und weiter“ aus.
+
 ## 1.0.0 – 2026-09-18
 
 - Erste öffentliche Version von PartyPicker.

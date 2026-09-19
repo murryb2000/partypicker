@@ -11,7 +11,8 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QGridLayout, QPushButton, QLabel, QListWidget, QFileDialog, QMessageBox,
     QSplitter, QCheckBox, QSlider, QComboBox)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
-from core import natural_key, read_playlist, save_playlist, save_text_playlist
+from core import (natural_key, path_key, read_playlist, save_playlist,
+                  save_text_playlist, text_entry)
 
 
 KO_FI_URL = 'https://ko-fi.com/murryb'
@@ -54,7 +55,11 @@ TEXTS = {
         'add_tip': 'Titel speichern und zum nächsten Titel wechseln',
         'choose_folder': 'Bravo-Hits-Ordner auswählen',
         'searching': 'Suche FLAC- und MP3-Dateien …',
+        'scan_skipped': 'Scan abgeschlossen · {count} nicht lesbare Ordner übersprungen',
         'no_files': 'Keine FLAC- oder MP3-Dateien in diesem Ordner gefunden.',
+        'no_files_skipped': 'Keine Musikdateien gefunden · {count} nicht lesbare Ordner übersprungen',
+        'saving': 'Playlist wird gespeichert …',
+        'save_in_progress': 'Bitte kurz warten – die Playlist wird noch gespeichert.',
         'folder_finished': 'Ordner durchgehört. Wähle den nächsten Ordner.',
         'file_unavailable': 'Datei nicht erreichbar:\n{path}',
         'wave_error': 'Waveform: {error}',
@@ -98,7 +103,11 @@ TEXTS = {
         'add_tip': 'Save track and continue to the next track',
         'choose_folder': 'Select Bravo Hits folder',
         'searching': 'Searching for FLAC and MP3 files …',
+        'scan_skipped': 'Scan complete · {count} unreadable folders skipped',
         'no_files': 'No FLAC or MP3 files found in this folder.',
+        'no_files_skipped': 'No music files found · {count} unreadable folders skipped',
+        'saving': 'Saving playlist …',
+        'save_in_progress': 'Please wait – the playlist is still being saved.',
         'folder_finished': 'Folder finished. Select the next folder.',
         'file_unavailable': 'File unavailable:\n{path}',
         'wave_error': 'Waveform: {error}',
@@ -115,27 +124,77 @@ def resource_path(name):
 
 
 class Scan(QThread):
-    result = Signal(object, str)
+    result = Signal(object, str, int)
     def __init__(self, root, recursive, parent):
         super().__init__(parent)
         self.root, self.recursive = root, recursive
     def run(self):
         try:
             files = []
-            def fail(error):
-                raise error
-            for root, dirs, names in os.walk(self.root, onerror=fail):
+            errors = []
+            root_seen = False
+
+            def skip(error):
+                errors.append(error)
+
+            for root, dirs, names in os.walk(self.root, onerror=skip):
                 if self.isInterruptionRequested():
                     return
+                if os.path.normcase(os.path.normpath(root)) == os.path.normcase(os.path.normpath(self.root)):
+                    root_seen = True
                 files.extend(
                     Path(root) / n for n in names
                     if Path(n).suffix.lower() in ('.flac', '.mp3')
                 )
                 if not self.recursive:
                     dirs.clear()
-            self.result.emit(sorted(files, key=natural_key), '')
+            if not root_seen and errors:
+                self.result.emit([], str(errors[0]), 0)
+                return
+            self.result.emit(sorted(files, key=natural_key), '', len(errors))
         except Exception as exc:
-            self.result.emit([], str(exc))
+            self.result.emit([], str(exc), 0)
+
+
+class Save(QThread):
+    result = Signal(object, object, object, str)
+    def __init__(self, target, entries, text_cache, parent):
+        super().__init__(parent)
+        self.target = Path(target)
+        self.entries = list(entries)
+        self.text_cache = dict(text_cache)
+
+    def run(self):
+        updates = {}
+        try:
+            if self.target.suffix.lower() == '.txt':
+                labels = dict(self.text_cache)
+                for path in self.entries:
+                    key = path_key(path)
+                    if key not in labels:
+                        labels[key] = text_entry(path)
+                        updates[key] = labels[key]
+                save_text_playlist(self.target, self.entries, labels)
+            else:
+                save_playlist(self.target, self.entries)
+            self.result.emit(self.target, self.entries, updates, '')
+        except Exception as exc:
+            self.result.emit(self.target, self.entries, updates, str(exc))
+
+
+class CheckFiles(QThread):
+    result = Signal(object, object)
+    def __init__(self, entries, parent):
+        super().__init__(parent)
+        self.entries = list(entries)
+
+    def run(self):
+        states = []
+        for path in self.entries:
+            if self.isInterruptionRequested():
+                return
+            states.append(path.is_file())
+        self.result.emit(self.entries, states)
 
 
 class Analyze(QThread):
@@ -204,7 +263,9 @@ class Window(QMainWindow):
         self.setWindowTitle(self.t('window_title'))
         self.resize(1180, 780)
         self.tracks, self.selected, self.jobs = [], [], []
+        self.selected_keys, self.text_cache, self.availability = set(), {}, {}
         self.index, self.playlist, self.analyzer = -1, None, None
+        self.save_job, self.pending_save = None, None
         self.audio = QAudioOutput(self)
         self.audio.setVolume(.65)
         self.player = QMediaPlayer(self)
@@ -340,12 +401,12 @@ class Window(QMainWindow):
         playlist_controls.setColumnStretch(0, 1)
         self.count = QLabel(self.t('count', tracks=0, selected=0))
         playlist_controls.addWidget(self.count, 0, 0, Qt.AlignLeft | Qt.AlignTop)
-        up_button = QPushButton('↑')
-        up_button.clicked.connect(lambda checked=False: self.move_pick(-1))
-        playlist_controls.addWidget(up_button, 0, 1)
-        down_button = QPushButton('↓')
-        down_button.clicked.connect(lambda checked=False: self.move_pick(1))
-        playlist_controls.addWidget(down_button, 0, 2)
+        self.up_button = QPushButton('↑')
+        self.up_button.clicked.connect(lambda checked=False: self.move_pick(-1))
+        playlist_controls.addWidget(self.up_button, 0, 1)
+        self.down_button = QPushButton('↓')
+        self.down_button.clicked.connect(lambda checked=False: self.move_pick(1))
+        playlist_controls.addWidget(self.down_button, 0, 2)
         self.remove_button = QPushButton(self.t('remove'))
         self.remove_button.clicked.connect(lambda checked=False: self.remove_pick())
         playlist_controls.addWidget(self.remove_button, 0, 3)
@@ -362,7 +423,7 @@ class Window(QMainWindow):
         layout.addWidget(body, 1)
         self.shortcuts_label = QLabel(self.t('shortcuts'))
         layout.addWidget(self.shortcuts_label)
-        for key, callback in [('Space', self.toggle), ('Left', lambda: self.jump(-10000)), ('Right', lambda: self.jump(10000)), ('Ctrl+Left', lambda: self.step(-1)), ('Ctrl+Right', lambda: self.step(1)), ('A', self.add), ('Return', lambda: self.add(True))]:
+        for key, callback in [('Space', self.toggle), ('Left', lambda: self.jump(-10000)), ('Right', lambda: self.jump(10000)), ('Ctrl+Left', lambda: self.step(-1)), ('Ctrl+Right', lambda: self.step(1)), ('A', self.add), ('Return', lambda: self.add(True)), ('Enter', lambda: self.add(True))]:
             shortcut = QShortcut(QKeySequence(key), self)
             shortcut.activated.connect(callback)
         self.statusBar().showMessage(self.t('ready'))
@@ -427,22 +488,64 @@ class Window(QMainWindow):
     def error(self, message):
         QMessageBox.warning(self, 'PartyPicker', str(message))
 
-    def commit(self, entries, target=None):
+    def set_save_busy(self, busy):
+        for widget in (self.new_button, self.open_playlist_button, self.save_as_button,
+                       self.text_only, self.add_button, self.up_button,
+                       self.down_button, self.remove_button):
+            widget.setEnabled(not busy)
+
+    def commit(self, entries, target=None, ui_change=None, on_success=None):
         target = target or self.playlist
         if target is None:
             return False
-        try:
-            if Path(target).suffix.lower() == '.txt':
-                save_text_playlist(target, entries)
-            else:
-                save_playlist(target, entries)
-        except Exception as exc:
-            self.error(self.t('not_saved', error=self.translate_core_error(str(exc))))
+        if self.save_job and self.save_job.isRunning():
+            self.statusBar().showMessage(self.t('save_in_progress'))
             return False
-        self.playlist, self.selected = Path(target), list(entries)
-        self.refresh()
-        self.statusBar().showMessage(self.t('saved', path=self.playlist))
+        entries = list(entries)
+        self.pending_save = (ui_change, on_success)
+        self.save_job = Save(target, entries, self.text_cache, self)
+        self.save_job.result.connect(self.saved)
+        self.set_save_busy(True)
+        self.statusBar().showMessage(self.t('saving'))
+        self.launch(self.save_job)
         return True
+
+    def saved(self, target, entries, cache_updates, error):
+        ui_change, on_success = self.pending_save or (None, None)
+        self.pending_save = None
+        self.save_job = None
+        self.text_cache.update(cache_updates)
+        self.set_save_busy(False)
+        if error:
+            self.error(self.t('not_saved', error=self.translate_core_error(error)))
+            return
+        self.playlist, self.selected = Path(target), list(entries)
+        self.selected_keys = {path_key(path) for path in self.selected}
+        self.apply_playlist_change(ui_change)
+        self.statusBar().showMessage(self.t('saved', path=self.playlist))
+        if on_success:
+            on_success()
+
+    def apply_playlist_change(self, change):
+        if not change or change[0] == 'full':
+            self.refresh()
+            return
+        action = change[0]
+        if action == 'clear':
+            self.picks.clear()
+        elif action == 'append':
+            self.add_pick_item(change[1])
+            self.show_latest_pick()
+        elif action == 'remove':
+            self.picks.takeItem(change[1])
+        elif action == 'move':
+            row, target = change[1], change[2]
+            item = self.picks.takeItem(row)
+            self.picks.insertItem(target, item)
+            self.picks.setCurrentRow(target)
+        self.location.setText(self.t('playlist_location', path=self.playlist))
+        self.refresh_count()
+        self.update_add()
 
     def choose_target(self):
         if self.text_only.isChecked():
@@ -459,15 +562,15 @@ class Window(QMainWindow):
                 name += '.m3u'
         return Path(name) if name else None
 
-    def new_playlist(self):
+    def new_playlist(self, on_success=None):
         target = self.choose_target()
         if target:
-            self.commit([], target)
+            self.commit([], target, ('clear',), on_success)
 
     def save_as(self):
         target = self.choose_target()
         if target:
-            self.commit(self.selected, target)
+            self.commit(self.selected, target, ('unchanged',))
 
     def open_playlist(self):
         name, _ = QFileDialog.getOpenFileName(
@@ -480,22 +583,45 @@ class Window(QMainWindow):
             self.error(self.translate_core_error(str(exc)))
             return
         self.playlist, self.selected = Path(name), entries
+        self.selected_keys = {path_key(path) for path in entries}
         self.text_only.setChecked(False)
         self.refresh()
         self.show_latest_pick()
-        missing = sum(not p.is_file() for p in entries)
-        self.statusBar().showMessage(
-            self.t('playlist_loaded_missing', missing=missing)
-            if missing else self.t('playlist_loaded'))
+        self.statusBar().showMessage(self.t('playlist_loaded'))
+        self.check_files(entries)
+
+    def add_pick_item(self, path):
+        missing = self.availability.get(path_key(path)) is False
+        self.picks.addItem(('⚠ ' if missing else '') + path.stem)
+        self.picks.item(self.picks.count() - 1).setToolTip(str(path))
 
     def refresh(self):
         self.picks.clear()
         for p in self.selected:
-            self.picks.addItem(('⚠ ' if not p.is_file() else '') + p.stem)
-            self.picks.item(self.picks.count()-1).setToolTip(str(p))
+            self.add_pick_item(p)
         self.location.setText(self.t('playlist_location', path=self.playlist))
         self.refresh_count()
         self.update_add()
+
+    def check_files(self, entries):
+        if not entries:
+            return
+        checker = CheckFiles(entries, self)
+        checker.result.connect(self.files_checked)
+        self.launch(checker)
+
+    def files_checked(self, entries, states):
+        if [path_key(p) for p in entries] != [path_key(p) for p in self.selected]:
+            return
+        for row, (path, available) in enumerate(zip(entries, states)):
+            self.availability[path_key(path)] = available
+            item = self.picks.item(row)
+            if item:
+                item.setText(('' if available else '⚠ ') + path.stem)
+        missing = states.count(False)
+        self.statusBar().showMessage(
+            self.t('playlist_loaded_missing', missing=missing)
+            if missing else self.t('playlist_loaded'))
 
     def refresh_count(self):
         self.count.setText(self.t('count', tracks=len(self.tracks), selected=len(self.selected)))
@@ -503,7 +629,9 @@ class Window(QMainWindow):
     def update_add(self):
         current = self.current_path()
         self.add_button.setToolTip(
-            self.t('already_added') if current in self.selected else self.t('add_tip'))
+            self.t('already_added')
+            if current is not None and path_key(current) in self.selected_keys
+            else self.t('add_tip'))
 
     def translate_core_error(self, message):
         replacements = {
@@ -526,13 +654,13 @@ class Window(QMainWindow):
     def launch(self, job):
         self.jobs.append(job)
         job.finished.connect(lambda: self.jobs.remove(job) if job in self.jobs else None)
+        job.finished.connect(job.deleteLater)
         job.start()
 
     def open_folder(self):
         if self.playlist is None:
-            self.new_playlist()
-            if self.playlist is None:
-                return
+            self.new_playlist(self.open_folder)
+            return
         folder = QFileDialog.getExistingDirectory(self, self.t('choose_folder'))
         if not folder:
             return
@@ -542,20 +670,23 @@ class Window(QMainWindow):
         scan.result.connect(self.scanned)
         self.launch(scan)
 
-    def scanned(self, files, error):
+    def scanned(self, files, error, skipped):
         self.folder_button.setEnabled(True)
         if error:
             self.error(error)
             return
         if not files:
-            self.statusBar().showMessage(self.t('no_files'))
+            self.statusBar().showMessage(
+                self.t('no_files_skipped', count=skipped) if skipped else self.t('no_files'))
             return
         self.tracks = files
         self.sources.clear()
         for p in files:
             self.sources.addItem(p.parent.name + ' / ' + p.name)
             self.sources.item(self.sources.count()-1).setToolTip(str(p))
-        self.refresh()
+        self.refresh_count()
+        if skipped:
+            self.statusBar().showMessage(self.t('scan_skipped', count=skipped))
         self.play_track(0)
 
     def play_track(self, index):
@@ -605,14 +736,13 @@ class Window(QMainWindow):
         if path is None:
             return
         if self.playlist is None:
-            self.new_playlist()
-        if self.playlist is None:
+            self.new_playlist(lambda: self.add(advance))
             return
-        if path not in self.selected:
-            if not self.commit(self.selected + [path]):
-                return
-            self.show_latest_pick()
-        if advance:
+        if path_key(path) not in self.selected_keys:
+            callback = (lambda: self.step(1)) if advance else None
+            self.commit(self.selected + [path], ui_change=('append', path),
+                        on_success=callback)
+        elif advance:
             self.step(1)
 
     def remove_pick(self):
@@ -620,7 +750,7 @@ class Window(QMainWindow):
         if row >= 0:
             entries = list(self.selected)
             entries.pop(row)
-            self.commit(entries)
+            self.commit(entries, ui_change=('remove', row))
 
     def move_pick(self, delta):
         row = self.picks.currentRow()
@@ -628,8 +758,7 @@ class Window(QMainWindow):
         if row >= 0 and 0 <= target < len(self.selected):
             entries = list(self.selected)
             entries[row], entries[target] = entries[target], entries[row]
-            if self.commit(entries):
-                self.picks.setCurrentRow(target)
+            self.commit(entries, ui_change=('move', row, target))
 
     def step(self, delta):
         self.play_track(self.index + delta)
