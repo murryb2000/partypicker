@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 from tinytag import TinyTag
-from PySide6.QtCore import Qt, QUrl, QThread, Signal, QTimer, QSettings
+from PySide6.QtCore import Qt, QUrl, QThread, Signal, Slot, QTimer, QSettings
 from PySide6.QtGui import (QColor, QDesktopServices, QIcon, QPainter, QPen,
                            QShortcut, QKeySequence, QPixmap)
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
@@ -653,9 +653,20 @@ class Window(QMainWindow):
 
     def launch(self, job):
         self.jobs.append(job)
-        job.finished.connect(lambda: self.jobs.remove(job) if job in self.jobs else None)
-        job.finished.connect(job.deleteLater)
+        job.finished.connect(self.job_finished)
         job.start()
+
+    @Slot()
+    def job_finished(self):
+        """Clear references on the GUI thread before deleting a finished worker."""
+        job = self.sender()
+        if self.analyzer is job:
+            self.analyzer = None
+        if self.save_job is job:
+            self.save_job = None
+        if job in self.jobs:
+            self.jobs.remove(job)
+        job.deleteLater()
 
     def open_folder(self):
         if self.playlist is None:

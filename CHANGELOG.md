@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4 – 2026-09-19
+
+- Titelwechsel nach abgeschlossener Waveform-Analyse repariert: Referenzen auf fertige Threads werden im GUI-Thread vor `deleteLater()` entfernt.
+- Ein verspätet beendeter Analyse-Thread löscht nicht die Referenz auf eine bereits gestartete neue Analyse.
+
 ## 1.0.3 – 2026-09-19
 
 - Die natürliche Sortierung behandelt nur noch dezimale Ziffern als Zahlen und bleibt bei ungewöhnlichen Unicode-Zeichen robust.
