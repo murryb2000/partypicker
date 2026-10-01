@@ -132,7 +132,7 @@ for language, additions in {
            'profile_keypad': 'Ziffernblock: 1 / 2 / 3', 'startup': 'Wie möchtest du starten?',
            'resume': 'Letzte Playlist fortsetzen', 'later': 'Später auswählen',
            'restore_folder': 'Letzten Musikordner ebenfalls öffnen',
-           'folder_unavailable': 'Letzter Musikordner ist nicht erreichbar: {path}',
+           'choose_folder_on_resume': 'Musikordner beim Fortsetzen auswählen',
            'txt_changed': 'Die TXT-Liste wurde außerhalb der App geändert. Die gespeicherte Sitzung passt nicht mehr dazu.',
            'keys_common': 'Leertaste: Play/Pause · A: aufnehmen · Enter (auch Ziffernblock): aufnehmen & weiter',
            'keys_ctrl': '←/→: ±10 s · Strg+←/→: vorheriger/nächster Song',
@@ -144,7 +144,7 @@ for language, additions in {
            'profile_keypad': 'Numeric keypad: 1 / 2 / 3', 'startup': 'How would you like to start?',
            'resume': 'Continue last playlist', 'later': 'Choose later',
            'restore_folder': 'Also open the last music folder',
-           'folder_unavailable': 'Last music folder is unavailable: {path}',
+           'choose_folder_on_resume': 'Choose a music folder when resuming',
            'txt_changed': 'The TXT list was changed outside the app. The saved session no longer matches it.',
            'keys_common': 'Space: Play/Pause · A: add · Enter (including keypad): add & continue',
            'keys_ctrl': 'Left/Right: ±10 s · Ctrl+Left/Right: previous/next track',
@@ -546,8 +546,13 @@ class Window(QMainWindow):
         resume.setEnabled(bool(session.get('path')))
         dialog.addButton(self.t('later'), QMessageBox.RejectRole)
         last_folder = self.settings.value('last_music_folder', '', type=str)
-        restore_folder = QCheckBox(self.t('restore_folder'))
-        restore_folder.setEnabled(bool(session.get('path') and last_folder))
+        restore_folder = QCheckBox(self.t('restore_folder' if last_folder else 'choose_folder_on_resume'))
+        restore_folder.setEnabled(bool(session.get('path')))
+        checkmark = resource_path('checkmark.png').as_posix()
+        restore_folder.setStyleSheet(
+            'QCheckBox::indicator { width:18px; height:18px; border:1px solid #8592a1; '
+            'border-radius:3px; background:#d9dfe5; } '
+            f'QCheckBox::indicator:checked {{ background:#218f7d; image:url("{checkmark}"); }}')
         dialog.setCheckBox(restore_folder)
         if session.get('path'):
             dialog.setInformativeText(session['path'])
@@ -556,10 +561,10 @@ class Window(QMainWindow):
             self.new_playlist()
         elif dialog.clickedButton() is resume:
             if self.load_playlist(session['path'], session) and restore_folder.isChecked():
-                if Path(last_folder).is_dir():
+                if last_folder and Path(last_folder).is_dir():
                     self.scan_folder(last_folder)
                 else:
-                    self.statusBar().showMessage(self.t('folder_unavailable', path=last_folder))
+                    self.open_folder()
 
     def change_language(self):
         self.lang = self.language_box.currentData()

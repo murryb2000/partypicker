@@ -107,6 +107,11 @@ Choose a keyboard layout at the bottom: Ctrl+arrows, arrows, Up/Down, or
 numeric keypad (Num Lock: 1 = -10 s, 2 = +10 s, 3 = next track, Ctrl+3 = previous track).
 The shortcut hints reflect your saved choice. On startup, create a new playlist
 or continue the last one. On first use, open or save a playlist to enable resume.
+
+NEW IN VERSION 1.1.1
 When resuming, check "Also open the last music folder" to restore the most
 recently selected folder and the subfolder setting. Its first track starts
-automatically after the scan.
+automatically after the scan. If no folder has been saved yet, check "Choose a
+music folder when resuming" to select one. The checkbox is highlighted in
+light gray. The logo now has three stacked lines: PARTYPICKER, the subtitle,
+and by MurryB.

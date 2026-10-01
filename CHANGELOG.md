@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 – 2026-10-01
+
+- Der Titelbereich zeigt PARTYPICKER, den Untertitel und „by MurryB“ untereinander neben dem Logo.
+- Beim Fortsetzen lässt sich der letzte Musikordner optional öffnen; die Unterordner-Einstellung wird übernommen und der erste Titel startet automatisch.
+- Bei bestehenden Installationen ohne gespeicherten Musikordner kann direkt beim Fortsetzen einer ausgewählt werden.
+- Der Haken im Startdialog ist durch einen hellgrauen Hintergrund besser erkennbar.
+
 ## 1.1.0
 
 - Vier umschaltbare, gespeicherte Tastaturbelegungen mit passender Kurzanleitung.
