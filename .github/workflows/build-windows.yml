@@ -39,6 +39,7 @@ jobs:
           --icon PartyPicker.ico
           --add-data "PartyPicker.ico;."
           --add-data "PartyPicker-icon.png;."
+          --add-data "checkmark.png;."
           --add-data "VERSION;."
           --collect-all soundfile
           party_picker.py
@@ -61,11 +62,11 @@ jobs:
           path: PartyPicker-Windows.zip
           if-no-files-found: error
 
-      - name: Bestehendes Release-Paket 1.1.0 aktualisieren
+      - name: Bestehendes Release-Paket aktualisieren
         if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload v1.1.0 PartyPicker-Windows.zip --clobber
+        run: gh release upload "v$(Get-Content VERSION)" PartyPicker-Windows.zip --clobber
 
       - name: GitHub-Release erstellen
         if: startsWith(github.ref, 'refs/tags/v')
@@ -73,7 +74,12 @@ jobs:
         with:
           name: PartyPicker ${{ github.ref_name }}
           body: |
-            Aktuelle Version von PartyPicker / Der Playlist-Generator.
+            PartyPicker 1.1.1 – Musikordner beim Fortsetzen übernehmen
+
+            - Neben dem Logo stehen PARTYPICKER, Der Playlist-Generator und by MurryB untereinander.
+            - Beim Fortsetzen der letzten Playlist kann der zuletzt verwendete Musikordner samt Unterordner-Einstellung automatisch geöffnet werden. Danach startet der erste Titel.
+            - Auf älteren Installationen ohne gespeicherten Musikordner lässt sich beim Fortsetzen ein Ordner auswählen.
+            - Der Haken im Startdialog ist jetzt hellgrau und deutlicher sichtbar.
 
             Nach dem Download `PartyPicker-Windows.zip` vollständig entpacken und
             `PartyPicker.exe` starten. Beim ersten Start kann Windows SmartScreen
