@@ -21,6 +21,7 @@ KO_FI_URL = 'https://ko-fi.com/murryb'
 TEXTS = {
     'de': {
         'window_title': 'PARTYPICKER / Der Playlist-Generator',
+        'subtitle': 'Der Playlist-Generator',
         'language': 'Sprache:',
         'new_playlist': 'Neue Playlist …', 'text_only': 'Nur TXT-Datei',
         'text_only_tip': 'Speichert eine reine Titelliste im Format Artist - Titel',
@@ -69,6 +70,7 @@ TEXTS = {
     },
     'en': {
         'window_title': 'PARTYPICKER / The Playlist Generator',
+        'subtitle': 'The Playlist Generator',
         'language': 'Language:',
         'new_playlist': 'New playlist …', 'text_only': 'TXT file only',
         'text_only_tip': 'Saves a plain track list in Artist - Title format',
@@ -129,6 +131,8 @@ for language, additions in {
            'profile_arrows': 'Rechts: nächster Song', 'profile_vertical': 'Unten: nächster Song',
            'profile_keypad': 'Ziffernblock: 1 / 2 / 3', 'startup': 'Wie möchtest du starten?',
            'resume': 'Letzte Playlist fortsetzen', 'later': 'Später auswählen',
+           'restore_folder': 'Letzten Musikordner ebenfalls öffnen',
+           'folder_unavailable': 'Letzter Musikordner ist nicht erreichbar: {path}',
            'txt_changed': 'Die TXT-Liste wurde außerhalb der App geändert. Die gespeicherte Sitzung passt nicht mehr dazu.',
            'keys_common': 'Leertaste: Play/Pause · A: aufnehmen · Enter (auch Ziffernblock): aufnehmen & weiter',
            'keys_ctrl': '←/→: ±10 s · Strg+←/→: vorheriger/nächster Song',
@@ -139,6 +143,8 @@ for language, additions in {
            'profile_arrows': 'Right: next track', 'profile_vertical': 'Down: next track',
            'profile_keypad': 'Numeric keypad: 1 / 2 / 3', 'startup': 'How would you like to start?',
            'resume': 'Continue last playlist', 'later': 'Choose later',
+           'restore_folder': 'Also open the last music folder',
+           'folder_unavailable': 'Last music folder is unavailable: {path}',
            'txt_changed': 'The TXT list was changed outside the app. The saved session no longer matches it.',
            'keys_common': 'Space: Play/Pause · A: add · Enter (including keypad): add & continue',
            'keys_ctrl': 'Left/Right: ±10 s · Ctrl+Left/Right: previous/next track',
@@ -334,7 +340,7 @@ class Window(QMainWindow):
         branding.setSpacing(2)
         title_row = QHBoxLayout()
         title_row.setSpacing(8)
-        self.head = QLabel(self.t('window_title'))
+        self.head = QLabel('PARTYPICKER')
         self.head.setWordWrap(False)
         self.head.setStyleSheet('font-size:22px; font-weight:bold;')
         self.version_label = QLabel(f'Version {APP_VERSION}')
@@ -344,7 +350,10 @@ class Window(QMainWindow):
         title_row.addStretch()
         credit = QLabel('by MurryB')
         credit.setStyleSheet('font-size:11px; color:#8fa4b8;')
+        self.subtitle = QLabel(self.t('subtitle'))
+        self.subtitle.setStyleSheet('font-size:15px;')
         branding.addLayout(title_row)
+        branding.addWidget(self.subtitle)
         branding.addWidget(credit)
         head_row.addLayout(branding, 1)
         self.language_label = QLabel(self.t('language'))
@@ -372,7 +381,7 @@ class Window(QMainWindow):
         folder_options.setSpacing(2)
         self.folder_button = self.button(folder_options, self.t('open_folder'), self.open_folder)
         self.recursive = QCheckBox(self.t('recursive'))
-        self.recursive.setChecked(True)
+        self.recursive.setChecked(self.settings.value('last_music_recursive', True, type=bool))
         folder_options.addWidget(self.recursive, 0, Qt.AlignHCenter)
         row.addLayout(folder_options)
         for toolbar_button in [self.new_button, *toolbar_buttons]:
@@ -536,13 +545,21 @@ class Window(QMainWindow):
         resume = dialog.addButton(self.t('resume'), QMessageBox.ActionRole)
         resume.setEnabled(bool(session.get('path')))
         dialog.addButton(self.t('later'), QMessageBox.RejectRole)
+        last_folder = self.settings.value('last_music_folder', '', type=str)
+        restore_folder = QCheckBox(self.t('restore_folder'))
+        restore_folder.setEnabled(bool(session.get('path') and last_folder))
+        dialog.setCheckBox(restore_folder)
         if session.get('path'):
             dialog.setInformativeText(session['path'])
         dialog.exec()
         if dialog.clickedButton() is new:
             self.new_playlist()
         elif dialog.clickedButton() is resume:
-            self.load_playlist(session['path'], session)
+            if self.load_playlist(session['path'], session) and restore_folder.isChecked():
+                if Path(last_folder).is_dir():
+                    self.scan_folder(last_folder)
+                else:
+                    self.statusBar().showMessage(self.t('folder_unavailable', path=last_folder))
 
     def change_language(self):
         self.lang = self.language_box.currentData()
@@ -551,7 +568,7 @@ class Window(QMainWindow):
 
     def retranslate_ui(self):
         self.setWindowTitle(self.t('window_title'))
-        self.head.setText(self.t('window_title'))
+        self.subtitle.setText(self.t('subtitle'))
         self.language_label.setText(self.t('language'))
         self.support_button.setText(self.t('support'))
         self.support_button.setToolTip(self.t('support_tip'))
@@ -710,7 +727,7 @@ class Window(QMainWindow):
                 entries = read_playlist(name)
         except Exception as exc:
             self.error(self.translate_core_error(str(exc)))
-            return
+            return False
         self.playlist, self.selected = Path(name), entries
         self.selected_keys = {path_key(path) for path in entries}
         self.text_only.setChecked(Path(name).suffix.lower() == '.txt')
@@ -719,6 +736,7 @@ class Window(QMainWindow):
         self.show_latest_pick()
         self.statusBar().showMessage(self.t('playlist_loaded'))
         self.check_files(entries)
+        return True
 
     def add_pick_item(self, path):
         missing = self.availability.get(path_key(path)) is False
@@ -802,9 +820,16 @@ class Window(QMainWindow):
         if self.playlist is None:
             self.new_playlist(self.open_folder)
             return
-        folder = QFileDialog.getExistingDirectory(self, self.t('choose_folder'))
+        folder = QFileDialog.getExistingDirectory(
+            self, self.t('choose_folder'), self.settings.value('last_music_folder', '', type=str))
         if not folder:
             return
+        self.scan_folder(folder)
+
+    def scan_folder(self, folder):
+        self.settings.setValue('last_music_folder', folder)
+        self.settings.setValue('last_music_recursive', self.recursive.isChecked())
+        self.settings.sync()
         self.folder_button.setEnabled(False)
         self.statusBar().showMessage(self.t('searching'))
         scan = Scan(folder, self.recursive.isChecked(), self)

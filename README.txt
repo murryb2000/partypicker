@@ -123,3 +123,6 @@ Ziffernblock (Num Lock: 1 = -10 s, 2 = +10 s, 3 = nächster Titel, Strg+3 = vorh
 Die Kurzanleitung zeigt die aktive Belegung. Die Auswahl wird gespeichert.
 Beim Start: neue Playlist oder letzte Playlist fortsetzen. Beim ersten Start
 dieser Version zunächst eine Playlist öffnen oder speichern.
+Beim Fortsetzen kann „Letzten Musikordner ebenfalls öffnen“ angehakt werden.
+Der zuletzt ausgewählte Ordner und die Einstellung für Unterordner werden
+wiederhergestellt; nach dem Einlesen startet der erste Titel automatisch.

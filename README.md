@@ -80,3 +80,5 @@ Unter den Listen lässt sich die Tastaturbelegung auswählen. Die Auswahl bleibt
 - Ziffernblock mit Num Lock: 1 = −10 Sekunden, 2 = +10 Sekunden, 3 = nächster Titel; Strg+3 = vorheriger Titel.
 
 Leertaste, A und beide Enter-Tasten behalten ihre Funktion. Beim Start kann eine neue Playlist angelegt oder die letzte fortgesetzt werden. Beim ersten Start dieser Version ist Fortsetzen erst verfügbar, nachdem eine Playlist geöffnet oder gespeichert wurde. Eigene TXT-Sitzungen werden anhand zusätzlich gespeicherter Musikpfade fortgesetzt; extern veränderte TXT-Listen werden dabei nicht überschrieben.
+
+Beim Fortsetzen kann der zuletzt gewählte Musikordner zusätzlich geöffnet werden. Die gespeicherte Unterordner-Einstellung wird übernommen; nach dem Scan startet der erste Titel. Im Kopfbereich stehen neben dem Logo nun PARTYPICKER, der lokalisierte Untertitel und „by MurryB“ untereinander.
