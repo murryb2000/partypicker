@@ -1264,6 +1264,9 @@ class Window(QMainWindow):
         self.settings.sync()
         self.play_token += 1
         self.player.stop()
+        # Release the backend file handle as well as stopping playback (Windows).
+        if isinstance(self.player, QMediaPlayer):
+            self.player.setSource(QUrl())
         for job in list(self.jobs):
             job.requestInterruption()
         for job in list(self.jobs):

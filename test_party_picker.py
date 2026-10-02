@@ -54,6 +54,9 @@ class PartyPickerTests(unittest.TestCase):
         sf.write(self.b, np.zeros(22050, dtype='float32'), 22050)
     def tearDown(self):
         self.w.close()
+        for player in self.w.findChildren(QMediaPlayer):
+            player.stop()
+            player.setSource(QUrl())
         APP.processEvents()
         self.settings_patch.stop()
         self.tmp.cleanup()
