@@ -28,6 +28,11 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install pyinstaller==6.22.3
 
+      - name: Regressionstests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest -v test_party_picker
+
       - name: PartyPicker.exe bauen
         run: >-
           python -m PyInstaller
@@ -74,11 +79,14 @@ jobs:
         with:
           name: PartyPicker ${{ github.ref_name }}
           body: |
-            PartyPicker 1.1.2 – Beim zuletzt gespielten Titel fortsetzen
+            PartyPicker 1.2.0 – Mehr Übersicht und schneller vorhören
 
-            - Beim Fortsetzen mit dem letzten Musikordner startet der zuletzt gespielte Titel aus diesem Ordner.
-            - Falls dieser Titel nicht mehr vorhanden ist, startet der erste Titel.
-            - Die Playlist wird weiterhin sofort nach jeder Änderung gespeichert.
+            - Gehörte Titel grau, aufgenommene grün und manuell übersprungene orange; Markierungen bleiben gespeichert.
+            - Duplikat-Nachfrage anhand von Interpret und Titel, auch bei unterschiedlichen Dateien.
+            - Einstellbare Startposition fürs Vorhören und optionale Lautstärkeangleichung.
+            - Rückgängig per Button oder Strg+Z, mit automatischem Speichern.
+            - Hintergrundprüfung vor der Wiedergabe, Erneut versuchen und Titel überspringen bei Fehlern.
+            - Fortsetzen mit letztem Musikordner und zuletzt gespieltem Titel bleibt erhalten.
 
             Nach dem Download `PartyPicker-Windows.zip` vollständig entpacken und
             `PartyPicker.exe` starten. Beim ersten Start kann Windows SmartScreen
