@@ -2,6 +2,7 @@
 
 ## 1.2.0 – 2026-10-02
 
+- Alle Checkbox-Kästchen verwenden das Blaugrau der noch nicht abgespielten Waveform, auch im Startdialog; gesetzte Haken bleiben weiß sichtbar.
 - Ordnerliste mit gespeicherten Farben: gehörte Titel grau, aufgenommene grün, manuell übersprungene orange. Markierungen lassen sich pro geöffnetem Ordner zurücksetzen.
 - Hintergrundprüfung auf gleiche Artist-/Titel-Metadaten; bei einer anderen Datei desselben Songs kann die Aufnahme bestätigt oder abgelehnt werden.
 - Einstellbare Startposition fürs Vorhören (0 bis 600 Sekunden, Standard 0). Kurze Titel behalten mindestens zehn Sekunden Restlaufzeit oder starten am Anfang.

@@ -639,11 +639,6 @@ class Window(QMainWindow):
         last_folder = self.settings.value('last_music_folder', '', type=str)
         restore_folder = QCheckBox(self.t('restore_folder' if last_folder else 'choose_folder_on_resume'))
         restore_folder.setEnabled(bool(session.get('path')))
-        checkmark = resource_path('checkmark.png').as_posix()
-        restore_folder.setStyleSheet(
-            'QCheckBox::indicator { width:18px; height:18px; border:1px solid #8592a1; '
-            'border-radius:3px; background:#d9dfe5; } '
-            f'QCheckBox::indicator:checked {{ background:#218f7d; image:url("{checkmark}"); }}')
         dialog.setCheckBox(restore_folder)
         if session.get('path'):
             dialog.setInformativeText(session['path'])
@@ -1274,6 +1269,17 @@ class Window(QMainWindow):
         event.accept()
 
 
+def checkbox_style():
+    checkmark = resource_path('checkmark.png').as_posix()
+    return (
+        'QCheckBox::indicator { width:18px; height:18px; border:1px solid #8592a1; '
+        'border-radius:3px; background:#577b9a; } '
+        'QCheckBox::indicator:unchecked { image:none; } '
+        f'QCheckBox::indicator:checked {{ image:url("{checkmark}"); }} '
+        'QCheckBox::indicator:hover { border:1px solid #e8eef5; } '
+        'QCheckBox::indicator:disabled { border:1px solid #425970; }')
+
+
 def main():
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon(str(resource_path('PartyPicker.ico'))))
@@ -1284,7 +1290,8 @@ def main():
     QListWidget { background:#101827; border:1px solid #304258; border-radius:6px; }
     QListWidget::item { padding:7px; } QListWidget::item:selected { background:#236e65; }
     QSlider::groove:horizontal { height:6px; background:#456078; }
-    QSlider::handle:horizontal { background:#36dab5; width:14px; margin:-5px 0; border-radius:6px; }''')
+    QSlider::handle:horizontal { background:#36dab5; width:14px; margin:-5px 0; border-radius:6px; }'''
+    + checkbox_style())
     window = Window()
     window.showMaximized()
     QTimer.singleShot(0, window.startup_choice)
