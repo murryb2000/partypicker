@@ -115,3 +115,7 @@ automatically after the scan. If no folder has been saved yet, check "Choose a
 music folder when resuming" to select one. The checkbox is highlighted in
 light gray. The logo now has three stacked lines: PARTYPICKER, the subtitle,
 and by MurryB.
+
+NEW IN VERSION 1.1.2
+When resuming with the last music folder, playback starts at the last track
+played from that folder. If it is no longer available, the first track starts.

@@ -132,3 +132,7 @@ Wenn noch kein Musikordner gespeichert wurde, kann beim Fortsetzen über den
 hellgrau hervorgehobenen Haken ein Ordner ausgewählt werden.
 Neben dem Logo stehen PARTYPICKER, Der Playlist-Generator und by MurryB
 untereinander.
+
+NEU IN VERSION 1.1.2
+Beim Fortsetzen mit dem letzten Musikordner startet der zuletzt gespielte
+Titel aus diesem Ordner. Fehlt er inzwischen, startet der erste Titel.

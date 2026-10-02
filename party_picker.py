@@ -562,9 +562,9 @@ class Window(QMainWindow):
         elif dialog.clickedButton() is resume:
             if self.load_playlist(session['path'], session) and restore_folder.isChecked():
                 if last_folder and Path(last_folder).is_dir():
-                    self.scan_folder(last_folder)
+                    self.scan_folder(last_folder, resume_last_track=True)
                 else:
-                    self.open_folder()
+                    self.open_folder(resume_last_track=True)
 
     def change_language(self):
         self.lang = self.language_box.currentData()
@@ -821,27 +821,28 @@ class Window(QMainWindow):
             self.jobs.remove(job)
         job.deleteLater()
 
-    def open_folder(self):
+    def open_folder(self, resume_last_track=False):
         if self.playlist is None:
-            self.new_playlist(self.open_folder)
+            self.new_playlist(lambda: self.open_folder(resume_last_track))
             return
         folder = QFileDialog.getExistingDirectory(
             self, self.t('choose_folder'), self.settings.value('last_music_folder', '', type=str))
         if not folder:
             return
-        self.scan_folder(folder)
+        self.scan_folder(folder, resume_last_track=resume_last_track)
 
-    def scan_folder(self, folder):
+    def scan_folder(self, folder, resume_last_track=False):
+        last_track = self.settings.value('last_music_track', '', type=str) if resume_last_track else ''
         self.settings.setValue('last_music_folder', folder)
         self.settings.setValue('last_music_recursive', self.recursive.isChecked())
         self.settings.sync()
         self.folder_button.setEnabled(False)
         self.statusBar().showMessage(self.t('searching'))
         scan = Scan(folder, self.recursive.isChecked(), self)
-        scan.result.connect(self.scanned)
+        scan.result.connect(lambda files, error, skipped: self.scanned(files, error, skipped, last_track))
         self.launch(scan)
 
-    def scanned(self, files, error, skipped):
+    def scanned(self, files, error, skipped, last_track=''):
         self.folder_button.setEnabled(True)
         if error:
             self.error(error)
@@ -858,13 +859,18 @@ class Window(QMainWindow):
         self.refresh_count()
         if skipped:
             self.statusBar().showMessage(self.t('scan_skipped', count=skipped))
-        self.play_track(0)
+        last_key = path_key(Path(last_track)) if last_track else None
+        start_index = next((i for i, path in enumerate(files) if path_key(path) == last_key), 0)
+        self.play_track(start_index)
 
     def play_track(self, index):
         if 0 <= index < len(self.tracks):
             self.index = index
             self.sources.setCurrentRow(index)
             self.play_path(self.tracks[index])
+            if self.tracks[index].is_file():
+                self.settings.setValue('last_music_track', str(self.tracks[index]))
+                self.settings.sync()
         elif index >= len(self.tracks) and self.tracks:
             self.statusBar().showMessage(self.t('folder_finished'))
 

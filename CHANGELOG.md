@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2 – 2026-10-02
+
+- Beim Fortsetzen mit dem letzten Musikordner beginnt die Wiedergabe beim zuletzt gespielten Titel aus diesem Ordner.
+- Ist dieser Titel nicht mehr vorhanden, startet der erste verfügbare Titel.
+
 ## 1.1.1 – 2026-10-01
 
 - Der Titelbereich zeigt PARTYPICKER, den Untertitel und „by MurryB“ untereinander neben dem Logo.
