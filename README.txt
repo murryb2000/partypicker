@@ -1,5 +1,5 @@
 PARTYPICKER / Der Playlist-Generator
-by MurryB
+by MurryB · Version 1.2.0
 ====================================
 
 KURZBESCHREIBUNG
@@ -130,9 +130,33 @@ Der zuletzt ausgewählte Ordner und die Einstellung für Unterordner werden
 wiederhergestellt; nach dem Einlesen startet der erste Titel automatisch.
 Wenn noch kein Musikordner gespeichert wurde, kann beim Fortsetzen über den
 hellgrau hervorgehobenen Haken ein Ordner ausgewählt werden.
-Neben dem Logo stehen PARTYPICKER, Der Playlist-Generator und by MurryB
+Neben dem Logo stehen PARTYPICKER, Der Playlist-Generator und by MurryB · Version 1.2.0
 untereinander.
 
 NEU IN VERSION 1.1.2
 Beim Fortsetzen mit dem letzten Musikordner startet der zuletzt gespielte
 Titel aus diesem Ordner. Fehlt er inzwischen, startet der erste Titel.
+
+
+NEU IN VERSION 1.2.0
+--------------------
+- Grau: mindestens 3 Sekunden gehört; Grün: in der aktuellen Playlist;
+  Orange: manuell mit Vorheriger/Nächster bzw. Tastenkürzel übersprungen.
+  Grün hat Vorrang. Markierungen bleiben gespeichert und lassen sich mit
+  „Markierungen zurücksetzen“ für den geöffneten Ordner löschen.
+- Gleicher Interpret und Titel in unterschiedlichen Dateien: Nachfrage vor
+  der Aufnahme. Artist-/Titel-Tags werden bevorzugt; sonst ein eindeutiger
+  Dateiname im Format Artist - Titel. Verschiedene Mix-Bezeichnungen bleiben
+  eigenständig. Die Prüfung läuft im Hintergrund.
+- „Vorhören ab“: Start bei 0–600 Sekunden, Standard 0. Bei kurzen Liedern
+  bleiben mindestens 10 Sekunden oder das Lied beginnt am Anfang.
+- „Rückgängig [Strg+Z]“: bis zu 20 erfolgreiche Playlist-Änderungen dieser
+  Sitzung zurücknehmen. Das Ergebnis wird sofort gespeichert. Bei einem
+  Speicherfehler bleiben Playlist und Verlauf erhalten.
+- „Lautstärke angleichen“: standardmäßig aus, wirkt nach der Waveform-Analyse.
+  RMS- und Spitzenpegel werden für die Abhörlautstärke genutzt. Keine Änderung
+  der Musikdateien, keine LUFS-Normalisierung; sehr leise Titel werden durch
+  den Lautstärkeregler begrenzt. Die Einstellung bleibt gespeichert.
+- Bei fehlender Musikdatei oder Wiedergabefehler: „Erneut versuchen“ oder
+  „Titel überspringen“. Die Dateiprüfung läuft im Hintergrund; ein nicht
+  antwortendes NAS kann trotzdem längere Wartezeiten verursachen.

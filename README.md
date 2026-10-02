@@ -2,6 +2,24 @@
 
 Lokale Desktop-App zum Durchhören von FLAC- und MP3-Sammlungen und Zusammenstellen einer Party-Playlist. Python mit PySide6 ermöglicht direkte Dateizugriffe und Speichern ohne Browser-Berechtigungsdialoge. Wiedergabe über Qt Multimedia; Waveform aus den echten Audiodaten über SoundFile. TinyTag liest ausschließlich Artist- und Title-Metadaten. Keine Musik-Uploads.
 
+## Neu in Version 1.2.0
+
+- Ordnerliste mit gespeicherten Farben: gehörte Titel grau, aufgenommene grün, manuell übersprungene orange. Markierungen lassen sich pro geöffnetem Ordner zurücksetzen.
+- Hintergrundprüfung auf gleiche Artist-/Titel-Metadaten; bei einer anderen Datei desselben Songs kann die Aufnahme bestätigt oder abgelehnt werden.
+- Einstellbare Startposition fürs Vorhören (0 bis 600 Sekunden, Standard 0). Kurze Titel behalten mindestens zehn Sekunden Restlaufzeit oder starten am Anfang.
+- Rückgängig-Button und Strg+Z für die letzten 20 erfolgreichen Playlist-Änderungen der Sitzung, einschließlich Aufnahme, Entfernung und Reihenfolge. Jede Rücknahme wird automatisch gespeichert.
+- Optionale Lautstärkeangleichung beim Vorhören anhand von RMS und Spitzenpegeln, ohne Änderungen an Musikdateien.
+- Dateiprüfung vor der Wiedergabe im Hintergrund; bei fehlenden Dateien oder Wiedergabefehlern stehen Erneut versuchen und Titel überspringen zur Verfügung.
+- Verspätete Analyse- und Prüf-Ergebnisse beeinflussen keine inzwischen gestarteten Titel. Automatisierte Regressionstests für die neuen Funktionen.
+
+Ein Titel gilt nach drei Sekunden tatsächlicher Wiedergabe als gehört. Manuelles Wechseln mit Vorheriger/Nächster oder Tastenkürzeln setzt nicht aufgenommene Titel auf orange; ein Doppelklick auf einen anderen Titel erhält den vorherigen Hörstatus. Bei natürlichem Titelende bleibt der Titel grau. Grün richtet sich immer nach der aktuell geöffneten Playlist und hat Vorrang. Die Hörmarkierungen werden lokal gespeichert, „Markierungen zurücksetzen“ entfernt sie für den geöffneten Ordner.
+
+Die Vorhörposition und Lautstärkeoption bleiben gespeichert. Lautstärkeangleichung ist standardmäßig aus. Die Angleichung wird nach Abschluss der Waveform-Analyse wirksam, verwendet den mittleren Pegel (RMS, Ziel ungefähr −20 dBFS) und begrenzt die Anhebung auf maximal +6 dB sowie verfügbare Lautstärke und Spitzenpegel. Sie ist keine EBU-R128/LUFS-Normalisierung; sehr leise Titel können durch den Regler nicht beliebig verstärkt werden.
+
+Duplikate werden anhand von Artist und Title erkannt, mit vereinheitlichter Groß-/Kleinschreibung, Unicode und Leerzeichen. Ohne vollständige Tags wird nur ein eindeutiger Dateiname mit „Artist - Titel“ verwendet. Unterschiedliche Mix-Bezeichnungen werden nicht entfernt; identische Tags bei unterschiedlichen Versionen können trotzdem eine Nachfrage auslösen. Die Prüfung läuft im Hintergrund und ihre Ergebnisse werden während der Sitzung zwischengespeichert.
+
+Rückgängig betrifft die Playlist, nicht die aktuelle Abspielposition. Bei fehlgeschlagener Speicherung bleiben Playlist und Rückgängig-Verlauf erhalten. Beim Öffnen einer anderen Playlist beginnt ein neuer Verlauf. Ein wirklich nicht antwortendes NAS kann Hintergrundzugriffe länger verzögern; es gibt keine garantierte Netzwerk-Zeitüberschreitung.
+
 ## Start
 
 1. Python 3.12 oder neuer (64 Bit) von https://www.python.org/downloads/windows/ installieren, einschließlich Python Launcher.
@@ -23,7 +41,7 @@ Optional kann unter „Neue Playlist …“ die standardmäßig deaktivierte Aus
 - A: laufenden Titel hinzufügen und sofort speichern (Tastenkürzel).
 - „+ Playlist [Enter]“ / Enter: speichern und nächsten Titel starten. Das funktioniert mit der normalen Eingabetaste und mit Enter auf dem Ziffernblock. Der Button steht zwischen „+10 s“ und „Nächster“.
 - Nach jeder neuen Aufnahme scrollt die Playlist automatisch zum zuletzt hinzugefügten Titel und markiert ihn. Dieses Verhalten gilt auch beim Öffnen einer vorhandenen M3U-Playlist.
-- Bereits enthaltene Dateipfade werden nicht doppelt aufgenommen. Andere Dateien desselben Songs gelten als eigenständige Titel.
+- Bereits enthaltene Dateipfade werden nicht doppelt aufgenommen. Andere Dateien mit demselben Interpret und Titel lösen eine Duplikat-Nachfrage aus.
 - Am Titelende automatisch zum nächsten Titel wechseln: abwählbar. Am Ordnerende stoppt die Wiedergabe.
 - Ein neuer Musikordner ersetzt nur die Durchhörliste. Die Party-Playlist bleibt bestehen.
 - Nicht lesbare Unterordner werden beim Scan übersprungen und anschließend gemeldet; bereits gefundene Titel bleiben nutzbar.

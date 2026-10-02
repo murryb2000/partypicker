@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0 – 2026-10-02
+
+- Ordnerliste mit gespeicherten Farben: gehörte Titel grau, aufgenommene grün, manuell übersprungene orange. Markierungen lassen sich pro geöffnetem Ordner zurücksetzen.
+- Hintergrundprüfung auf gleiche Artist-/Titel-Metadaten; bei einer anderen Datei desselben Songs kann die Aufnahme bestätigt oder abgelehnt werden.
+- Einstellbare Startposition fürs Vorhören (0 bis 600 Sekunden, Standard 0). Kurze Titel behalten mindestens zehn Sekunden Restlaufzeit oder starten am Anfang.
+- Rückgängig-Button und Strg+Z für die letzten 20 erfolgreichen Playlist-Änderungen der Sitzung, einschließlich Aufnahme, Entfernung und Reihenfolge. Jede Rücknahme wird automatisch gespeichert.
+- Optionale Lautstärkeangleichung beim Vorhören anhand von RMS und Spitzenpegeln, ohne Änderungen an Musikdateien.
+- Dateiprüfung vor der Wiedergabe im Hintergrund; bei fehlenden Dateien oder Wiedergabefehlern stehen Erneut versuchen und Titel überspringen zur Verfügung.
+- Verspätete Analyse- und Prüf-Ergebnisse beeinflussen keine inzwischen gestarteten Titel. Automatisierte Regressionstests für die neuen Funktionen.
+
 ## 1.1.2 – 2026-10-02
 
 - Beim Fortsetzen mit dem letzten Musikordner beginnt die Wiedergabe beim zuletzt gespielten Titel aus diesem Ordner.

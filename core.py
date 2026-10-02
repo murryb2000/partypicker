@@ -96,3 +96,35 @@ def save_text_playlist(path, entries, labels=None):
         value = labels[key] if key in labels else text_entry(p)
         lines.append(value.replace('\r', ' ').replace('\n', ' '))
     _write_lines(path, lines)
+
+
+def track_identity(path):
+    """Conservative artist/title identity; no network access beyond reading tags."""
+    import unicodedata
+    try:
+        tags = TinyTag.get(path)
+        artist, title = tags.artist, tags.title
+    except Exception:
+        artist = title = None
+    if not artist or not title:
+        # Only use a filename with an explicit artist/title separator.
+        parts = Path(path).stem.split(' - ', 1)
+        if len(parts) != 2:
+            return None
+        artist = re.sub(r'^(?:CD\d+[- .]*)?\d+[- .]*', '', parts[0], flags=re.I)
+        title = parts[1]
+    def normalize(value):
+        return ' '.join(unicodedata.normalize('NFKC', value).casefold().split())
+    return (normalize(artist), normalize(title)) if artist.strip() and title.strip() else None
+
+
+def preview_position(requested_ms, duration_ms):
+    """Keep at least ten seconds to audition, otherwise restart a short track."""
+    return max(0, min(requested_ms, duration_ms - 10000)) if duration_ms > 10000 else 0
+
+
+def normalization_gain(rms, peak):
+    """RMS listening adjustment, max +6 dB; never deliberately raise peaks past 1."""
+    if rms <= 1e-8 or peak <= 1e-8:
+        return 1.0
+    return max(0.0, min(2.0, 0.1 / rms, 0.98 / peak))

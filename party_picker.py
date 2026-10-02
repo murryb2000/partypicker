@@ -10,10 +10,10 @@ from PySide6.QtGui import (QColor, QDesktopServices, QIcon, QPainter, QPen,
                            QShortcut, QKeySequence, QPixmap)
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QGridLayout, QPushButton, QLabel, QListWidget, QFileDialog, QMessageBox,
-    QSplitter, QCheckBox, QSlider, QComboBox)
+    QSplitter, QCheckBox, QSlider, QComboBox, QSpinBox)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from core import (natural_key, path_key, read_playlist, save_playlist,
-                  save_text_playlist, text_entry)
+                  save_text_playlist, text_entry, track_identity, preview_position, normalization_gain)
 
 
 KO_FI_URL = 'https://ko-fi.com/murryb'
@@ -155,6 +155,10 @@ for language, additions in {
     TEXTS[language].update(additions)
 
 
+for language, additions in {'de': {'preview_start': 'Vorhören ab:', 'normalize': 'Lautstärke angleichen', 'normalize_tip': 'Gleicht die Abhörlautstärke anhand des mittleren Pegels an. Musikdateien bleiben unverändert. Sehr leise Titel sind durch den Lautstärkeregler begrenzt.', 'undo': 'Rückgängig [Strg+Z]', 'legend': 'Grau: gehört · Grün: aufgenommen · Orange: übersprungen', 'legend_tip': 'Nach 3 Sekunden Wiedergabe gilt ein Titel als gehört. Manuelles Weiter-/Zurückschalten markiert nicht aufgenommene Titel als übersprungen. Die Farben bleiben nach einem Neustart erhalten.', 'duplicate': 'Dieser Interpret und Titel ist bereits in der Playlist:\n{title}\n\nTrotzdem diese andere Datei aufnehmen?', 'add_anyway': 'Trotzdem aufnehmen', 'skip_duplicate': 'Nicht aufnehmen', 'checking_track': 'Prüfe Titel und Playlist …', 'retry': 'Erneut versuchen', 'skip_file': 'Titel überspringen', 'unavailable_detail': 'Der Titel konnte nicht geladen werden. Prüfe die Verbindung zum Laufwerk/NAS.\n\n{path}\n\n{error}', 'history_reset': 'Markierungen zurücksetzen', 'history_confirm': 'Markierungen für den aktuellen Ordner zurücksetzen? Aufgenommene Titel bleiben grün.', 'undo_done': 'Letzte Playlist-Änderung rückgängig gemacht'}, 'en': {'preview_start': 'Preview from:', 'normalize': 'Match listening volume', 'normalize_tip': 'Matches listening volume using average level. Music files are unchanged. Very quiet tracks are limited by the volume slider.', 'undo': 'Undo [Ctrl+Z]', 'legend': 'Grey: heard · Green: added · Orange: skipped', 'legend_tip': 'A track is heard after 3 seconds of playback. Manually moving to another track marks unselected tracks as skipped. Colours persist across restarts.', 'duplicate': 'This artist and title is already in your playlist:\n{title}\n\nAdd this different file anyway?', 'add_anyway': 'Add anyway', 'skip_duplicate': 'Do not add', 'checking_track': 'Checking track and playlist …', 'retry': 'Retry', 'skip_file': 'Skip track', 'unavailable_detail': 'The track could not be loaded. Check your drive/NAS connection.\n\n{path}\n\n{error}', 'history_reset': 'Reset markings', 'history_confirm': 'Reset markings for the current folder? Selected tracks remain green.', 'undo_done': 'Last playlist change undone'}}.items():
+    TEXTS[language].update(additions)
+
+
 def resource_path(name):
     """Resolve bundled assets both from source and a PyInstaller one-file EXE."""
     base = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
@@ -238,29 +242,71 @@ class CheckFiles(QThread):
         self.result.emit(self.entries, states)
 
 
-class Analyze(QThread):
-    result = Signal(str, object, str, str)
-    def __init__(self, path, parent):
+
+class Probe(QThread):
+    result = Signal(int, object, object, str)
+    def __init__(self, token, path, parent):
         super().__init__(parent)
-        self.path = path
+        self.token, self.path = token, path
     def run(self):
         try:
+            if not self.path.is_file():
+                raise FileNotFoundError(str(self.path))
+            identity = track_identity(self.path)
+            self.result.emit(self.token, self.path, identity, '')
+        except Exception as exc:
+            self.result.emit(self.token, self.path, None, str(exc))
+
+
+class Duplicates(QThread):
+    result = Signal(object, object, object, bool, object)
+    def __init__(self, path, entries, cache, advance, parent):
+        super().__init__(parent)
+        self.path, self.entries, self.cache, self.advance = path, list(entries), dict(cache), advance
+    def run(self):
+        updates, duplicate = {}, None
+        for path in [self.path, *self.entries]:
+            if self.isInterruptionRequested():
+                return
+            key = path_key(path)
+            if key not in self.cache:
+                self.cache[key] = track_identity(path)
+                updates[key] = self.cache[key]
+        identity = self.cache[path_key(self.path)]
+        if identity:
+            duplicate = next((p for p in self.entries if self.cache[path_key(p)] == identity), None)
+        self.result.emit(self.path, self.entries, duplicate, self.advance, updates)
+
+
+class Analyze(QThread):
+    result = Signal(int, str, object, str, float, str)
+    def __init__(self, token, path, parent):
+        super().__init__(parent)
+        self.token, self.path = token, path
+    def run(self):
+        try:
+            square_sum, samples, peak = 0.0, 0, 0.0
             with sf.SoundFile(str(self.path)) as audio:
                 block = max(1, int(np.ceil(len(audio) / 1600)))
                 peaks = []
                 for data in audio.blocks(blocksize=block, dtype='float32', always_2d=True):
                     if self.isInterruptionRequested():
                         return
-                    peaks.append(float(np.abs(data).max()))
+                    block_peak = float(np.abs(data).max())
+                    peaks.append(block_peak)
+                    peak = max(peak, block_peak)
+                    square_sum += float(np.sum(np.square(data, dtype=np.float64)))
+                    samples += data.size
             title = self.path.stem
             try:
                 tags = TinyTag.get(self.path)
                 title = ' – '.join(filter(None, [tags.artist, tags.title])) or title
             except Exception:
                 pass
-            self.result.emit(str(self.path), peaks, title, '')
+            rms = (square_sum / samples) ** .5 if samples else 0
+            self.result.emit(self.token, str(self.path), peaks, title, normalization_gain(rms, peak), '')
         except Exception as exc:
-            self.result.emit(str(self.path), [], self.path.stem, str(exc))
+            self.result.emit(self.token, str(self.path), [], self.path.stem, 1.0, str(exc))
 
 
 class Waveform(QWidget):
@@ -308,15 +354,32 @@ class Window(QMainWindow):
         self.index, self.playlist, self.analyzer = -1, None, None
         self.save_job, self.pending_save = None, None
         self.audio = QAudioOutput(self)
-        self.audio.setVolume(.65)
+        self.user_volume, self.track_gain = .65, 1.0
+        self.audio.setVolume(self.user_volume)
+        self.play_token, self.pending_seek = 0, None
+        self.duplicate_job = None
+        self.identity_cache, self.undo_stack, self.source_rows = {}, [], {}
+        self.error_pending = None
+        self.listened_ms, self.last_position = 0, 0
+        try:
+            self.history = json.loads(self.settings.value('track_history', '{}'))
+            if not isinstance(self.history, dict):
+                self.history = {}
+        except (TypeError, ValueError):
+            self.history = {}
+        self.history_dirty = False
+        self.history_timer = QTimer(self)
+        self.history_timer.setInterval(1500)
+        self.history_timer.timeout.connect(self.flush_history)
+        self.history_timer.start()
         self.player = QMediaPlayer(self)
         self.player.setAudioOutput(self.audio)
         self.player.positionChanged.connect(self.position)
-        self.player.durationChanged.connect(lambda _: self.position(self.player.position()))
+        self.player.durationChanged.connect(self.duration_ready)
+        self.player.seekableChanged.connect(lambda _: self.apply_preview_start())
         self.player.playbackStateChanged.connect(self.state)
         self.player.mediaStatusChanged.connect(self.media_status)
-        self.player.errorOccurred.connect(lambda *args: self.statusBar().showMessage(
-            self.t('playback_error', error=self.player.errorString())))
+        self.player.errorOccurred.connect(self.playback_failed)
         root = QWidget()
         self.setCentralWidget(root)
         layout = QVBoxLayout(root)
@@ -420,13 +483,29 @@ class Window(QMainWindow):
         volume.setRange(0, 100)
         volume.setValue(65)
         volume.setMaximumWidth(130)
-        volume.valueChanged.connect(lambda value: self.audio.setVolume(value / 100))
+        volume.valueChanged.connect(self.volume_changed)
         options.addWidget(volume)
         options.addStretch()
         self.auto = QCheckBox(self.t('auto_next'))
         self.auto.setChecked(True)
         options.addWidget(self.auto)
         player_layout.addLayout(options)
+        audition = QHBoxLayout()
+        self.preview_label = QLabel(self.t('preview_start'))
+        audition.addWidget(self.preview_label)
+        self.preview_seconds = QSpinBox()
+        self.preview_seconds.setRange(0, 600)
+        self.preview_seconds.setSuffix(' s')
+        self.preview_seconds.setValue(self.settings.value('preview_seconds', 0, type=int))
+        self.preview_seconds.valueChanged.connect(lambda v: self.settings.setValue('preview_seconds', v))
+        audition.addWidget(self.preview_seconds)
+        self.normalize = QCheckBox(self.t('normalize'))
+        self.normalize.setChecked(self.settings.value('normalize', False, type=bool))
+        self.normalize.setToolTip(self.t('normalize_tip'))
+        self.normalize.toggled.connect(self.normalization_changed)
+        audition.addWidget(self.normalize)
+        audition.addStretch()
+        player_layout.addLayout(audition)
         player_layout.addStretch(1)
         sidebar = QWidget()
         sidebar_layout = QVBoxLayout(sidebar)
@@ -442,6 +521,14 @@ class Window(QMainWindow):
             pane_label = QLabel(label)
             self.pane_labels.append(pane_label)
             box.addWidget(pane_label)
+            if widget is self.sources:
+                self.legend = QLabel(self.t('legend'))
+                self.legend.setStyleSheet('font-size:11px; color:#a9b7c6;')
+                self.legend.setToolTip(self.t('legend_tip'))
+                box.addWidget(self.legend)
+                self.reset_history_button = QPushButton(self.t('history_reset'))
+                self.reset_history_button.clicked.connect(self.reset_history)
+                box.addWidget(self.reset_history_button)
             box.addWidget(widget)
             splitter.addWidget(pane)
         sidebar_layout.addWidget(splitter, 1)
@@ -466,6 +553,10 @@ class Window(QMainWindow):
         self.support_button.setToolTip(self.t('support_tip'))
         self.support_button.setStyleSheet('background:#7a4a16; font-weight:bold;')
         playlist_controls.addWidget(self.support_button, 1, 3)
+        self.undo_button = QPushButton(self.t('undo'))
+        self.undo_button.clicked.connect(self.undo)
+        self.undo_button.setEnabled(False)
+        playlist_controls.addWidget(self.undo_button, 1, 0, 1, 3)
         sidebar_layout.addLayout(playlist_controls)
         body.addWidget(sidebar)
         body.setStretchFactor(0, 3)
@@ -505,7 +596,7 @@ class Window(QMainWindow):
         self.keyboard_shortcuts.clear()
         profile = self.keyboard_box.currentData()
         self.settings.setValue('keyboard_profile', profile)
-        bindings = [('Space', self.toggle), ('A', self.add),
+        bindings = [('Space', self.toggle), ('A', self.add), ('Ctrl+Z', self.undo),
                     ('Return', lambda: self.add(True)), ('Enter', lambda: self.add(True))]
         bindings += [(key, lambda offset=offset: self.jump(offset))
                      for key, offset in KEY_PROFILES[profile]]
@@ -561,7 +652,7 @@ class Window(QMainWindow):
             self.new_playlist()
         elif dialog.clickedButton() is resume:
             if self.load_playlist(session['path'], session) and restore_folder.isChecked():
-                if last_folder and Path(last_folder).is_dir():
+                if last_folder:
                     self.scan_folder(last_folder, resume_last_track=True)
                 else:
                     self.open_folder(resume_last_track=True)
@@ -594,6 +685,13 @@ class Window(QMainWindow):
         self.pane_labels[0].setText(self.t('folder_heading'))
         self.pane_labels[1].setText(self.t('playlist_heading'))
         self.remove_button.setText(self.t('remove'))
+        self.undo_button.setText(self.t('undo'))
+        self.preview_label.setText(self.t('preview_start'))
+        self.normalize.setText(self.t('normalize'))
+        self.normalize.setToolTip(self.t('normalize_tip'))
+        self.legend.setText(self.t('legend'))
+        self.legend.setToolTip(self.t('legend_tip'))
+        self.reset_history_button.setText(self.t('history_reset'))
         self.keyboard_label.setText(self.t('keyboard'))
         for index, profile in enumerate(KEY_PROFILES):
             self.keyboard_box.setItemText(index, self.t('profile_' + profile))
@@ -629,18 +727,21 @@ class Window(QMainWindow):
     def set_save_busy(self, busy):
         for widget in (self.new_button, self.open_playlist_button, self.save_as_button,
                        self.text_only, self.add_button, self.up_button,
-                       self.down_button, self.remove_button):
+                       self.down_button, self.remove_button, self.undo_button):
             widget.setEnabled(not busy)
+        self.undo_button.setEnabled(not busy and bool(self.undo_stack))
 
-    def commit(self, entries, target=None, ui_change=None, on_success=None):
+    def commit(self, entries, target=None, ui_change=None, on_success=None, record_undo=True):
         target = target or self.playlist
         if target is None:
             return False
-        if self.save_job and self.save_job.isRunning():
+        if self.duplicate_job or (self.save_job and self.save_job.isRunning()):
             self.statusBar().showMessage(self.t('save_in_progress'))
             return False
         entries = list(entries)
-        self.pending_save = (ui_change, on_success)
+        same_target = self.playlist is not None and path_key(target) == path_key(self.playlist)
+        snapshot = list(self.selected) if same_target and entries != self.selected and record_undo else None
+        self.pending_save = (ui_change, on_success, snapshot, same_target)
         self.save_job = Save(target, entries, self.text_cache, self)
         self.save_job.result.connect(self.saved)
         self.set_save_busy(True)
@@ -649,7 +750,7 @@ class Window(QMainWindow):
         return True
 
     def saved(self, target, entries, cache_updates, error):
-        ui_change, on_success = self.pending_save or (None, None)
+        ui_change, on_success, snapshot, same_target = self.pending_save or (None, None, None, True)
         self.pending_save = None
         self.save_job = None
         self.text_cache.update(cache_updates)
@@ -657,9 +758,16 @@ class Window(QMainWindow):
         if error:
             self.error(self.t('not_saved', error=self.translate_core_error(error)))
             return
+        if not same_target:
+            self.undo_stack.clear()
+        elif snapshot is not None:
+            self.undo_stack.append(snapshot)
+            self.undo_stack = self.undo_stack[-20:]
         self.playlist, self.selected = Path(target), list(entries)
         self.selected_keys = {path_key(path) for path in self.selected}
         self.apply_playlist_change(ui_change)
+        self.update_source_colors()
+        self.undo_button.setEnabled(bool(self.undo_stack))
         self.remember_playlist()
         self.statusBar().showMessage(self.t('saved', path=self.playlist))
         if on_success:
@@ -733,6 +841,8 @@ class Window(QMainWindow):
         except Exception as exc:
             self.error(self.translate_core_error(str(exc)))
             return False
+        self.undo_stack.clear()
+        self.undo_button.setEnabled(False)
         self.playlist, self.selected = Path(name), entries
         self.selected_keys = {path_key(path) for path in entries}
         self.text_only.setChecked(Path(name).suffix.lower() == '.txt')
@@ -755,6 +865,7 @@ class Window(QMainWindow):
         self.location.setText(self.t('playlist_location', path=self.playlist))
         self.refresh_count()
         self.update_add()
+        self.update_source_colors()
 
     def check_files(self, entries):
         if not entries:
@@ -815,6 +926,9 @@ class Window(QMainWindow):
         job = self.sender()
         if self.analyzer is job:
             self.analyzer = None
+        if self.duplicate_job is job:
+            self.duplicate_job = None
+            self.set_save_busy(self.save_job is not None)
         if self.save_job is job:
             self.save_job = None
         if job in self.jobs:
@@ -852,10 +966,12 @@ class Window(QMainWindow):
                 self.t('no_files_skipped', count=skipped) if skipped else self.t('no_files'))
             return
         self.tracks = files
+        self.source_rows = {path_key(p): i for i, p in enumerate(files)}
         self.sources.clear()
         for p in files:
             self.sources.addItem(p.parent.name + ' / ' + p.name)
             self.sources.item(self.sources.count()-1).setToolTip(str(p))
+        self.update_source_colors()
         self.refresh_count()
         if skipped:
             self.statusBar().showMessage(self.t('scan_skipped', count=skipped))
@@ -867,43 +983,118 @@ class Window(QMainWindow):
         if 0 <= index < len(self.tracks):
             self.index = index
             self.sources.setCurrentRow(index)
-            self.play_path(self.tracks[index])
-            if self.tracks[index].is_file():
-                self.settings.setValue('last_music_track', str(self.tracks[index]))
-                self.settings.sync()
+            self.play_path(self.tracks[index], folder_track=True)
         elif index >= len(self.tracks) and self.tracks:
+            self.player.stop()
             self.statusBar().showMessage(self.t('folder_finished'))
 
-    def play_path(self, path):
-        if not path.is_file():
-            self.error(self.t('file_unavailable', path=path))
-            return
+    def play_path(self, path, folder_track=False):
         if self.analyzer and self.analyzer.isRunning():
             self.analyzer.requestInterruption()
+        self.play_token += 1
+        self.error_pending = None
         self.player.stop()
+        self.player.setSource(QUrl())
+        self.listened_ms, self.last_position = 0, 0
+        self.pending_seek = None
+        self.track_gain = 1.0
+        self.apply_volume()
         self.title.setText(path.stem)
         self.file_label.setText(str(path))
         self.wave.peaks, self.wave.fraction = [], 0
         self.wave_message_key = 'wave_loading'
         self.wave.message = self.t(self.wave_message_key)
         self.wave.update()
+        self.requested_path, self.requested_folder_track = Path(path), folder_track
+        probe = Probe(self.play_token, Path(path), self)
+        probe.result.connect(self.probed)
+        self.launch(probe)
+        self.update_add()
+
+    @Slot(int, object, object, str)
+    def probed(self, token, path, identity, error):
+        if token != self.play_token:
+            return
+        if error:
+            self.schedule_playback_error(token, path, error)
+            return
+        self.identity_cache[path_key(path)] = identity
+        if self.requested_folder_track:
+            self.settings.setValue('last_music_track', str(path))
+        self.pending_seek = self.preview_seconds.value() * 1000
         self.player.setSource(QUrl.fromLocalFile(str(path)))
         self.player.play()
-        self.analyzer = Analyze(path, self)
+        self.analyzer = Analyze(token, path, self)
         self.analyzer.result.connect(self.analyzed)
         self.launch(self.analyzer)
         self.update_add()
 
-    def analyzed(self, path, peaks, title, error):
-        if str(self.current_path()) != path:
+    @Slot(int, str, object, str, float, str)
+    def analyzed(self, token, path, peaks, title, gain, error):
+        if token != self.play_token or str(self.current_path()) != path:
             return
         self.title.setText(title)
+        self.track_gain = gain
+        self.apply_volume()
         self.wave.peaks = peaks
         self.wave_message_key = 'wave_unavailable' if error else ''
         self.wave.message = self.t(self.wave_message_key) if self.wave_message_key else ''
         self.wave.update()
         if error:
             self.statusBar().showMessage(self.t('wave_error', error=error))
+
+    def duration_ready(self, duration):
+        self.apply_preview_start()
+        self.position(self.player.position())
+
+    def apply_preview_start(self):
+        if self.pending_seek is not None and self.player.isSeekable() and self.player.duration() > 0:
+            target = preview_position(self.pending_seek, self.player.duration())
+            self.pending_seek = None
+            self.last_position = target
+            self.player.setPosition(target)
+
+    def volume_changed(self, value):
+        self.user_volume = value / 100
+        self.apply_volume()
+
+    def normalization_changed(self, enabled):
+        self.settings.setValue('normalize', enabled)
+        self.apply_volume()
+
+    def apply_volume(self):
+        enabled = hasattr(self, 'normalize') and self.normalize.isChecked()
+        self.audio.setVolume(min(1.0, self.user_volume * (self.track_gain if enabled else 1.0)))
+
+    def playback_failed(self, *args):
+        path = self.current_path()
+        if path:
+            self.schedule_playback_error(self.play_token, path, self.player.errorString())
+
+    def schedule_playback_error(self, token, path, error):
+        if self.error_pending == token:
+            return
+        self.error_pending = token
+        QTimer.singleShot(0, lambda: self.show_playback_error(token, path, error))
+
+    def show_playback_error(self, token, path, error):
+        if token != self.play_token or self.error_pending != token:
+            return
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle('PartyPicker')
+        dialog.setText(self.t('unavailable_detail', path=path, error=error))
+        retry = dialog.addButton(self.t('retry'), QMessageBox.AcceptRole)
+        skip = dialog.addButton(self.t('skip_file'), QMessageBox.ActionRole)
+        dialog.addButton('Abbrechen' if self.lang == 'de' else 'Cancel', QMessageBox.RejectRole)
+        dialog.exec()
+        if token != self.play_token:
+            return
+        if dialog.clickedButton() is retry:
+            self.play_path(path, self.requested_folder_track)
+        elif dialog.clickedButton() is skip:
+            self.mark_history(path, 'skipped')
+            if self.requested_folder_track:
+                self.play_track(self.index + 1)
 
     def preview_pick(self, item):
         self.play_path(self.selected[self.picks.row(item)])
@@ -915,12 +1106,89 @@ class Window(QMainWindow):
         if self.playlist is None:
             self.new_playlist(lambda: self.add(advance))
             return
+        if self.duplicate_job or self.save_job:
+            return
         if path_key(path) not in self.selected_keys:
-            callback = (lambda: self.step(1)) if advance else None
-            self.commit(self.selected + [path], ui_change=('append', path),
-                        on_success=callback)
+            self.duplicate_job = Duplicates(path, self.selected, self.identity_cache, advance, self)
+            self.duplicate_job.result.connect(self.duplicates_checked)
+            self.set_save_busy(True)
+            self.statusBar().showMessage(self.t('checking_track'))
+            self.launch(self.duplicate_job)
         elif advance:
             self.step(1)
+
+    @Slot(object, object, object, bool, object)
+    def duplicates_checked(self, path, entries, duplicate, advance, updates):
+        self.duplicate_job = None
+        self.identity_cache.update(updates)
+        self.set_save_busy(self.save_job is not None)
+        if entries != self.selected or self.current_path() != path or self.save_job:
+            return
+        if duplicate:
+            dialog = QMessageBox(self)
+            dialog.setWindowTitle('PartyPicker')
+            dialog.setText(self.t('duplicate', title=duplicate.stem))
+            yes = dialog.addButton(self.t('add_anyway'), QMessageBox.AcceptRole)
+            no = dialog.addButton(self.t('skip_duplicate'), QMessageBox.RejectRole)
+            dialog.setDefaultButton(no)
+            dialog.exec()
+            if dialog.clickedButton() is not yes:
+                if advance:
+                    self.step(1)
+                return
+        if self.current_path() != path or entries != self.selected or self.save_job:
+            return
+        self.commit(self.selected + [path], ui_change=('append', path),
+                    on_success=(lambda: self.step(1)) if advance else None)
+
+    def undo(self):
+        if not self.undo_stack or self.save_job or self.duplicate_job:
+            return
+        entries = list(self.undo_stack[-1])
+        def done():
+            self.undo_stack.pop()
+            self.undo_button.setEnabled(bool(self.undo_stack))
+            self.show_latest_pick()
+            self.statusBar().showMessage(self.t('undo_done'))
+        self.commit(entries, ui_change=('full',), on_success=done, record_undo=False)
+
+    def mark_history(self, path, status):
+        key = path_key(path)
+        if self.history.get(key) != status:
+            self.history[key] = status
+            self.history_dirty = True
+            self.update_source_colors(key)
+
+    def flush_history(self):
+        if self.history_dirty:
+            self.settings.setValue('track_history', json.dumps(self.history))
+            self.history_dirty = False
+
+    def update_source_colors(self, only_key=None):
+        rows = [self.source_rows[only_key]] if only_key in self.source_rows else ([] if only_key else range(len(self.tracks)))
+        for row in rows:
+            key = path_key(self.tracks[row])
+            item = self.sources.item(row)
+            if item:
+                color = '#36dab5' if key in self.selected_keys else {
+                    'heard': '#8c97a5', 'skipped': '#ffb454'}.get(self.history.get(key), '#e8eef5')
+                item.setForeground(QColor(color))
+
+    def reset_history(self):
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle('PartyPicker')
+        dialog.setText(self.t('history_confirm'))
+        yes = dialog.addButton('Zurücksetzen' if self.lang == 'de' else 'Reset', QMessageBox.AcceptRole)
+        no = dialog.addButton('Abbrechen' if self.lang == 'de' else 'Cancel', QMessageBox.RejectRole)
+        dialog.setDefaultButton(no)
+        dialog.exec()
+        if dialog.clickedButton() is not yes:
+            return
+        for path in self.tracks:
+            self.history.pop(path_key(path), None)
+        self.history_dirty = True
+        self.update_source_colors()
+        self.flush_history()
 
     def remove_pick(self):
         row = self.picks.currentRow()
@@ -938,6 +1206,9 @@ class Window(QMainWindow):
             self.commit(entries, ui_change=('move', row, target))
 
     def step(self, delta):
+        path = self.current_path()
+        if path and self.requested_folder_track and path_key(path) not in self.selected_keys:
+            self.mark_history(path, 'skipped')
         self.play_track(self.index + delta)
 
     def toggle(self):
@@ -948,17 +1219,26 @@ class Window(QMainWindow):
 
     def seek(self, fraction):
         if self.player.isSeekable():
-            self.player.setPosition(int(fraction * self.player.duration()))
+            self.last_position = int(fraction * self.player.duration())
+            self.player.setPosition(self.last_position)
 
     def jump(self, delta):
         if self.player.isSeekable():
-            self.player.setPosition(max(0, min(self.player.duration(), self.player.position() + delta)))
+            self.last_position = max(0, min(self.player.duration(), self.player.position() + delta))
+            self.player.setPosition(self.last_position)
 
     def state(self, state):
         self.play_button.setText(
             self.t('pause') if state == QMediaPlayer.PlayingState else self.t('play'))
 
     def position(self, value):
+        elapsed = value - self.last_position
+        self.last_position = value
+        if self.player.playbackState() == QMediaPlayer.PlayingState and 0 < elapsed <= 2000:
+            self.listened_ms += elapsed
+            path = self.current_path()
+            if self.listened_ms >= 3000 and path and getattr(self, 'requested_folder_track', False):
+                self.mark_history(path, 'heard')
         duration = self.player.duration()
         def time(ms):
             seconds = ms // 1000
@@ -968,12 +1248,21 @@ class Window(QMainWindow):
         self.wave.update()
 
     def media_status(self, status):
+        if status == QMediaPlayer.EndOfMedia:
+            path = self.current_path()
+            if path and getattr(self, 'requested_folder_track', False):
+                self.mark_history(path, 'heard')
         if status == QMediaPlayer.EndOfMedia and self.auto.isChecked():
             # Playlist previews do not unexpectedly jump into the folder queue.
-            if 0 <= self.index < len(self.tracks) and self.current_path() == self.tracks[self.index]:
-                QTimer.singleShot(0, lambda: self.step(1))
+            if (getattr(self, 'requested_folder_track', False) and
+                    0 <= self.index < len(self.tracks) and self.current_path() == self.tracks[self.index]):
+                token = self.play_token
+                QTimer.singleShot(0, lambda: self.play_track(self.index + 1) if token == self.play_token else None)
 
     def closeEvent(self, event):
+        self.flush_history()
+        self.settings.sync()
+        self.play_token += 1
         self.player.stop()
         for job in list(self.jobs):
             job.requestInterruption()

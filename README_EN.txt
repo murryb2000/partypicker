@@ -1,5 +1,5 @@
 PARTYPICKER / The Playlist Generator
-by MurryB
+by MurryB · Version 1.2.0
 ====================================
 
 OVERVIEW
@@ -119,3 +119,24 @@ and by MurryB.
 NEW IN VERSION 1.1.2
 When resuming with the last music folder, playback starts at the last track
 played from that folder. If it is no longer available, the first track starts.
+
+
+NEW IN VERSION 1.2.0
+--------------------
+- Grey: heard for at least 3 seconds; Green: in the current playlist;
+  Orange: manually skipped with Previous/Next or a keyboard shortcut.
+  Green takes priority. Markings persist and can be cleared for the current
+  folder using "Reset markings".
+- Matching artist and title in different files: confirmation before adding.
+  Artist/title tags are preferred, with an unambiguous Artist - Title filename
+  as fallback. Different mix names remain distinct. Checks run in the background.
+- "Preview from": start at 0–600 seconds, default 0. Short tracks keep at least
+  10 seconds for auditioning or start from the beginning.
+- "Undo [Ctrl+Z]": undo up to 20 successful playlist changes in this session.
+  Every undo is saved immediately; failed saves preserve playlist and history.
+- "Match listening volume": off by default, takes effect after waveform analysis.
+  Uses RMS and peak levels to adjust listening volume. Music files are unchanged.
+  This is not LUFS normalization; very quiet tracks are limited by the volume
+  slider. This setting and the preview position persist across restarts.
+- Missing file or playback error: "Retry" or "Skip track". File checks run in
+  the background; an unresponsive NAS can still cause longer waits.
