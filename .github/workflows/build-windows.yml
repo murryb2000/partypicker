@@ -74,12 +74,11 @@ jobs:
         with:
           name: PartyPicker ${{ github.ref_name }}
           body: |
-            PartyPicker 1.1.1 – Musikordner beim Fortsetzen übernehmen
+            PartyPicker 1.1.2 – Beim zuletzt gespielten Titel fortsetzen
 
-            - Neben dem Logo stehen PARTYPICKER, Der Playlist-Generator und by MurryB untereinander.
-            - Beim Fortsetzen der letzten Playlist kann der zuletzt verwendete Musikordner samt Unterordner-Einstellung automatisch geöffnet werden. Danach startet der erste Titel.
-            - Auf älteren Installationen ohne gespeicherten Musikordner lässt sich beim Fortsetzen ein Ordner auswählen.
-            - Der Haken im Startdialog ist jetzt hellgrau und deutlicher sichtbar.
+            - Beim Fortsetzen mit dem letzten Musikordner startet der zuletzt gespielte Titel aus diesem Ordner.
+            - Falls dieser Titel nicht mehr vorhanden ist, startet der erste Titel.
+            - Die Playlist wird weiterhin sofort nach jeder Änderung gespeichert.
 
             Nach dem Download `PartyPicker-Windows.zip` vollständig entpacken und
             `PartyPicker.exe` starten. Beim ersten Start kann Windows SmartScreen
