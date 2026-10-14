@@ -128,7 +128,7 @@ NEW IN VERSION 1.2.1
 
 NEW IN VERSION 1.2.0
 --------------------
-- Grey: heard for at least 3 seconds; Green: in the current playlist;
+- Grey: undecided; Green: in the current playlist;
   Orange: manually skipped with Previous/Next or a keyboard shortcut.
   Green takes priority. Markings persist and can be cleared for the current
   folder using "Reset markings".

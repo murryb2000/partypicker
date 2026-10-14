@@ -8,7 +8,7 @@ Lokale Desktop-App zum Durchhören von FLAC- und MP3-Sammlungen und Zusammenstel
 
 ## Neu in Version 1.2.0
 
-- Ordnerliste mit gespeicherten Farben: gehörte Titel grau, aufgenommene grün, manuell übersprungene orange. Markierungen lassen sich pro geöffnetem Ordner zurücksetzen.
+- Ordnerliste mit gespeicherten Farben: noch nicht entschiedene Titel grau, aufgenommene grün, nicht aufgenommene und übersprungene Titel orange. Markierungen lassen sich pro geöffnetem Ordner zurücksetzen.
 - Hintergrundprüfung auf gleiche Artist-/Titel-Metadaten; bei einer anderen Datei desselben Songs kann die Aufnahme bestätigt oder abgelehnt werden.
 - Einstellbare Startposition fürs Vorhören (0 bis 600 Sekunden, Standard 0). Kurze Titel behalten mindestens zehn Sekunden Restlaufzeit oder starten am Anfang.
 - Rückgängig-Button und Strg+Z für die letzten 20 erfolgreichen Playlist-Änderungen der Sitzung, einschließlich Aufnahme, Entfernung und Reihenfolge. Jede Rücknahme wird automatisch gespeichert.
@@ -16,7 +16,7 @@ Lokale Desktop-App zum Durchhören von FLAC- und MP3-Sammlungen und Zusammenstel
 - Dateiprüfung vor der Wiedergabe im Hintergrund; bei fehlenden Dateien oder Wiedergabefehlern stehen Erneut versuchen und Titel überspringen zur Verfügung.
 - Verspätete Analyse- und Prüf-Ergebnisse beeinflussen keine inzwischen gestarteten Titel. Automatisierte Regressionstests für die neuen Funktionen.
 
-Ein Titel gilt nach drei Sekunden tatsächlicher Wiedergabe als gehört. Manuelles Wechseln mit Vorheriger/Nächster oder Tastenkürzeln setzt nicht aufgenommene Titel auf orange; ein Doppelklick auf einen anderen Titel erhält den vorherigen Hörstatus. Bei natürlichem Titelende bleibt der Titel grau. Grün richtet sich immer nach der aktuell geöffneten Playlist und hat Vorrang. Die Hörmarkierungen werden lokal gespeichert, „Markierungen zurücksetzen“ entfernt sie für den geöffneten Ordner.
+Noch nicht entschiedene Titel bleiben grau. Manuelles Wechseln mit Vorheriger/Nächster, Tastenkürzeln oder das natürliche Titelende markiert nicht aufgenommene Titel orange. Aufgenommene Titel sind grün und haben Vorrang. Ein Doppelklick auf einen anderen Titel erhält den vorherigen Status. Grün richtet sich immer nach der aktuell geöffneten Playlist und hat Vorrang. Die Hörmarkierungen werden lokal gespeichert, „Markierungen zurücksetzen“ entfernt sie für den geöffneten Ordner.
 
 Die Vorhörposition und Lautstärkeoption bleiben gespeichert. Lautstärkeangleichung ist standardmäßig aus. Die Angleichung wird nach Abschluss der Waveform-Analyse wirksam, verwendet den mittleren Pegel (RMS, Ziel ungefähr −20 dBFS) und begrenzt die Anhebung auf maximal +6 dB sowie verfügbare Lautstärke und Spitzenpegel. Sie ist keine EBU-R128/LUFS-Normalisierung; sehr leise Titel können durch den Regler nicht beliebig verstärkt werden.
 

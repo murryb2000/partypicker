@@ -103,6 +103,8 @@ class PartyPickerTests(unittest.TestCase):
         wait_for(lambda: not self.w.jobs)
     def test_history_colors_and_persistence(self):
         self.stub(self.a)
+        self.w.update_source_colors()
+        self.assertEqual(self.w.sources.item(1).foreground().color().name(), '#8c97a5')
         for v in (1000, 2000, 3000): self.w.position(v)
         self.assertEqual(self.w.sources.item(0).foreground().color().name(), '#8c97a5')
         self.w.play_track = lambda index: None
@@ -115,6 +117,23 @@ class PartyPickerTests(unittest.TestCase):
         other = Window()
         self.assertEqual(other.history[path_key(self.a)], 'skipped')
         other.close()
+    def test_resume_missing_track_does_not_silently_play_first(self):
+        files = [self.root / '01 - first.flac', self.root / '02 - second.flac']
+        started = []
+        self.w.play_track = lambda index: started.append(index)
+        self.w.scanned(files, '', 0, str(self.root / 'other-folder' / '02 - second.flac'))
+        self.assertEqual(started, [1])  # unique filename survives a changed drive root
+        started.clear()
+        self.w.scanned(files, '', 0, str(self.root / 'other-folder' / '03 - missing.flac'))
+        self.assertEqual(started, [])
+        self.assertIn('nicht gefunden', self.w.statusBar().currentMessage())
+    def test_last_played_track_is_saved_before_async_probe(self):
+        self.w.tracks = [self.a, self.b]
+        self.w.sources.addItems([self.a.name, self.b.name])
+        with patch.object(self.w, 'play_path') as play_path:
+            self.w.play_track(1)
+        self.assertEqual(self.w.settings.value('last_music_track'), str(self.b))
+        play_path.assert_called_once_with(self.b, folder_track=True)
     def test_atomic_undo_add_remove_reorder_and_failure(self):
         target = self.root/'party.m3u8'
         self.save([], target=target)
@@ -258,7 +277,7 @@ class PartyPickerTests(unittest.TestCase):
         self.w.media_status(QMediaPlayer.EndOfMedia)
         APP.processEvents()
         self.assertEqual(calls, [1])
-        self.assertEqual(self.w.history[path_key(self.a)], 'heard')
+        self.assertEqual(self.w.history[path_key(self.a)], 'skipped')
 
     def test_translations_and_shortcuts(self):
         self.assertEqual(set(TEXTS['de']), set(TEXTS['en']))

@@ -145,7 +145,7 @@ NEU IN VERSION 1.2.1
 
 NEU IN VERSION 1.2.0
 --------------------
-- Grau: mindestens 3 Sekunden gehört; Grün: in der aktuellen Playlist;
+- Grau: noch nicht entschieden; Grün: in der aktuellen Playlist;
   Orange: manuell mit Vorheriger/Nächster bzw. Tastenkürzel übersprungen.
   Grün hat Vorrang. Markierungen bleiben gespeichert und lassen sich mit
   „Markierungen zurücksetzen“ für den geöffneten Ordner löschen.

@@ -155,7 +155,7 @@ for language, additions in {
     TEXTS[language].update(additions)
 
 
-for language, additions in {'de': {'preview_start': 'Vorhören ab:', 'normalize': 'Lautstärke angleichen', 'normalize_tip': 'Gleicht die Abhörlautstärke anhand des mittleren Pegels an. Musikdateien bleiben unverändert. Sehr leise Titel sind durch den Lautstärkeregler begrenzt.', 'undo': 'Rückgängig [Strg+Z]', 'legend': 'Grau: gehört · Grün: aufgenommen · Orange: übersprungen', 'legend_tip': 'Nach 3 Sekunden Wiedergabe gilt ein Titel als gehört. Manuelles Weiter-/Zurückschalten markiert nicht aufgenommene Titel als übersprungen. Die Farben bleiben nach einem Neustart erhalten.', 'duplicate': 'Dieser Interpret und Titel ist bereits in der Playlist:\n{title}\n\nTrotzdem diese andere Datei aufnehmen?', 'add_anyway': 'Trotzdem aufnehmen', 'skip_duplicate': 'Nicht aufnehmen', 'checking_track': 'Prüfe Titel und Playlist …', 'retry': 'Erneut versuchen', 'skip_file': 'Titel überspringen', 'unavailable_detail': 'Der Titel konnte nicht geladen werden. Prüfe die Verbindung zum Laufwerk/NAS.\n\n{path}\n\n{error}', 'history_reset': 'Markierungen zurücksetzen', 'history_confirm': 'Markierungen für den aktuellen Ordner zurücksetzen? Aufgenommene Titel bleiben grün.', 'undo_done': 'Letzte Playlist-Änderung rückgängig gemacht'}, 'en': {'preview_start': 'Preview from:', 'normalize': 'Match listening volume', 'normalize_tip': 'Matches listening volume using average level. Music files are unchanged. Very quiet tracks are limited by the volume slider.', 'undo': 'Undo [Ctrl+Z]', 'legend': 'Grey: heard · Green: added · Orange: skipped', 'legend_tip': 'A track is heard after 3 seconds of playback. Manually moving to another track marks unselected tracks as skipped. Colours persist across restarts.', 'duplicate': 'This artist and title is already in your playlist:\n{title}\n\nAdd this different file anyway?', 'add_anyway': 'Add anyway', 'skip_duplicate': 'Do not add', 'checking_track': 'Checking track and playlist …', 'retry': 'Retry', 'skip_file': 'Skip track', 'unavailable_detail': 'The track could not be loaded. Check your drive/NAS connection.\n\n{path}\n\n{error}', 'history_reset': 'Reset markings', 'history_confirm': 'Reset markings for the current folder? Selected tracks remain green.', 'undo_done': 'Last playlist change undone'}}.items():
+for language, additions in {'de': {'preview_start': 'Vorhören ab:', 'normalize': 'Lautstärke angleichen', 'normalize_tip': 'Gleicht die Abhörlautstärke anhand des mittleren Pegels an. Musikdateien bleiben unverändert. Sehr leise Titel sind durch den Lautstärkeregler begrenzt.', 'undo': 'Rückgängig [Strg+Z]', 'legend': 'Grau: noch nicht gehört · Grün: aufgenommen · Orange: übersprungen', 'legend_tip': 'Grau bleibt ein Titel, solange du noch keine Auswahl getroffen hast. Beim Weiter-/Zurückschalten oder am Titelende wird ein nicht aufgenommener Titel orange. Grün zeigt Titel in der Playlist. Die Farben bleiben nach einem Neustart erhalten.', 'resume_track_missing': 'Der zuletzt gespielte Titel wurde in diesem Ordner nicht gefunden. Es wurde kein anderer Titel automatisch gestartet.', 'duplicate': 'Dieser Interpret und Titel ist bereits in der Playlist:\n{title}\n\nTrotzdem diese andere Datei aufnehmen?', 'add_anyway': 'Trotzdem aufnehmen', 'skip_duplicate': 'Nicht aufnehmen', 'checking_track': 'Prüfe Titel und Playlist …', 'retry': 'Erneut versuchen', 'skip_file': 'Titel überspringen', 'unavailable_detail': 'Der Titel konnte nicht geladen werden. Prüfe die Verbindung zum Laufwerk/NAS.\n\n{path}\n\n{error}', 'history_reset': 'Markierungen zurücksetzen', 'history_confirm': 'Markierungen für den aktuellen Ordner zurücksetzen? Aufgenommene Titel bleiben grün.', 'undo_done': 'Letzte Playlist-Änderung rückgängig gemacht'}, 'en': {'preview_start': 'Preview from:', 'normalize': 'Match listening volume', 'normalize_tip': 'Matches listening volume using average level. Music files are unchanged. Very quiet tracks are limited by the volume slider.', 'undo': 'Undo [Ctrl+Z]', 'legend': 'Grey: not heard · Green: added · Orange: skipped', 'legend_tip': 'A track stays grey until you decide. Moving to another track or reaching its end marks it orange if it was not added. Green shows tracks in the playlist. Colours persist across restarts.', 'resume_track_missing': 'The last played track was not found in this folder. No other track was started automatically.', 'duplicate': 'This artist and title is already in your playlist:\n{title}\n\nAdd this different file anyway?', 'add_anyway': 'Add anyway', 'skip_duplicate': 'Do not add', 'checking_track': 'Checking track and playlist …', 'retry': 'Retry', 'skip_file': 'Skip track', 'unavailable_detail': 'The track could not be loaded. Check your drive/NAS connection.\n\n{path}\n\n{error}', 'history_reset': 'Reset markings', 'history_confirm': 'Reset markings for the current folder? Selected tracks remain green.', 'undo_done': 'Last playlist change undone'}}.items():
     TEXTS[language].update(additions)
 
 
@@ -360,7 +360,7 @@ class Window(QMainWindow):
         self.duplicate_job = None
         self.identity_cache, self.undo_stack, self.source_rows = {}, [], {}
         self.error_pending = None
-        self.listened_ms, self.last_position = 0, 0
+        self.last_position = 0
         try:
             self.history = json.loads(self.settings.value('track_history', '{}'))
             if not isinstance(self.history, dict):
@@ -971,7 +971,19 @@ class Window(QMainWindow):
         if skipped:
             self.statusBar().showMessage(self.t('scan_skipped', count=skipped))
         last_key = path_key(Path(last_track)) if last_track else None
-        start_index = next((i for i, path in enumerate(files) if path_key(path) == last_key), 0)
+        start_index = next((i for i, path in enumerate(files) if path_key(path) == last_key), None)
+        if start_index is None and last_track:
+            # A mapped drive may be presented with a different root spelling
+            # after restart. Use the filename only when it is unambiguous.
+            matches = [i for i, path in enumerate(files)
+                       if path.name.casefold() == Path(last_track).name.casefold()]
+            if len(matches) == 1:
+                start_index = matches[0]
+            else:
+                self.statusBar().showMessage(self.t('resume_track_missing'))
+                return
+        if start_index is None:
+            start_index = 0
         self.play_track(start_index)
 
     def play_track(self, index):
@@ -982,6 +994,10 @@ class Window(QMainWindow):
             # Selecting the restored last-played track is not enough when it is
             # far down a large folder; reveal it before playback starts.
             self.sources.scrollToItem(item)
+            # Persist before the asynchronous probe/audio startup so a quick
+            # exit still resumes at the selected track.
+            self.settings.setValue('last_music_track', str(self.tracks[index]))
+            self.settings.sync()
             self.play_path(self.tracks[index], folder_track=True)
         elif index >= len(self.tracks) and self.tracks:
             self.player.stop()
@@ -1169,8 +1185,8 @@ class Window(QMainWindow):
             key = path_key(self.tracks[row])
             item = self.sources.item(row)
             if item:
-                color = '#36dab5' if key in self.selected_keys else {
-                    'heard': '#8c97a5', 'skipped': '#ffb454'}.get(self.history.get(key), '#e8eef5')
+                color = '#36dab5' if key in self.selected_keys else (
+                    '#ffb454' if self.history.get(key) in ('heard', 'skipped') else '#8c97a5')
                 item.setForeground(QColor(color))
 
     def reset_history(self):
@@ -1231,13 +1247,7 @@ class Window(QMainWindow):
             self.t('pause') if state == QMediaPlayer.PlayingState else self.t('play'))
 
     def position(self, value):
-        elapsed = value - self.last_position
         self.last_position = value
-        if self.player.playbackState() == QMediaPlayer.PlayingState and 0 < elapsed <= 2000:
-            self.listened_ms += elapsed
-            path = self.current_path()
-            if self.listened_ms >= 3000 and path and getattr(self, 'requested_folder_track', False):
-                self.mark_history(path, 'heard')
         duration = self.player.duration()
         def time(ms):
             seconds = ms // 1000
@@ -1249,8 +1259,9 @@ class Window(QMainWindow):
     def media_status(self, status):
         if status == QMediaPlayer.EndOfMedia:
             path = self.current_path()
-            if path and getattr(self, 'requested_folder_track', False):
-                self.mark_history(path, 'heard')
+            if (path and getattr(self, 'requested_folder_track', False)
+                    and path_key(path) not in self.selected_keys):
+                self.mark_history(path, 'skipped')
         if status == QMediaPlayer.EndOfMedia and self.auto.isChecked():
             # Playlist previews do not unexpectedly jump into the folder queue.
             if (getattr(self, 'requested_folder_track', False) and
