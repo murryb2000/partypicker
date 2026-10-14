@@ -1,5 +1,5 @@
 PARTYPICKER / The Playlist Generator
-by MurryB · Version 1.2.0
+by MurryB · Version 1.2.1
 ====================================
 
 OVERVIEW
@@ -120,6 +120,11 @@ NEW IN VERSION 1.1.2
 When resuming with the last music folder, playback starts at the last track
 played from that folder. If it is no longer available, the first track starts.
 
+
+NEW IN VERSION 1.2.1
+--------------------
+- When resuming, the folder list scrolls to the last played track and starts
+  it from the beginning.
 
 NEW IN VERSION 1.2.0
 --------------------

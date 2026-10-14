@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1 – 2026-10-14
+
+- Beim Fortsetzen wird der zuletzt gespielte Titel im erneut geöffneten Musikordner sichtbar markiert und abgespielt, auch wenn er weit unten in einer langen Liste steht.
+
 ## 1.2.0 – 2026-10-02
 
 - Alle Checkbox-Kästchen verwenden das Blaugrau der noch nicht abgespielten Waveform, auch im Startdialog; gesetzte Haken bleiben weiß sichtbar.

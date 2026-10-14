@@ -2,6 +2,10 @@
 
 Lokale Desktop-App zum Durchhören von FLAC- und MP3-Sammlungen und Zusammenstellen einer Party-Playlist. Python mit PySide6 ermöglicht direkte Dateizugriffe und Speichern ohne Browser-Berechtigungsdialoge. Wiedergabe über Qt Multimedia; Waveform aus den echten Audiodaten über SoundFile. TinyTag liest ausschließlich Artist- und Title-Metadaten. Keine Musik-Uploads.
 
+## Neu in Version 1.2.1
+
+- Beim Fortsetzen springt die Ordnerliste sichtbar zum zuletzt gespielten Titel und startet ihn von vorn.
+
 ## Neu in Version 1.2.0
 
 - Ordnerliste mit gespeicherten Farben: gehörte Titel grau, aufgenommene grün, manuell übersprungene orange. Markierungen lassen sich pro geöffnetem Ordner zurücksetzen.

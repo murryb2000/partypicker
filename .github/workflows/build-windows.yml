@@ -79,14 +79,15 @@ jobs:
         with:
           name: PartyPicker ${{ github.ref_name }}
           body: |
-            PartyPicker 1.2.0 – Mehr Übersicht und schneller vorhören
+            PartyPicker 1.2.1 – Zum zuletzt gespielten Titel zurückspringen
+
+            - Beim Fortsetzen springt die Ordnerliste zum zuletzt gespielten Titel und startet ihn von vorn.
 
             - Gehörte Titel grau, aufgenommene grün und manuell übersprungene orange; Markierungen bleiben gespeichert.
             - Duplikat-Nachfrage anhand von Interpret und Titel, auch bei unterschiedlichen Dateien.
             - Einstellbare Startposition fürs Vorhören und optionale Lautstärkeangleichung.
             - Rückgängig per Button oder Strg+Z, mit automatischem Speichern.
             - Hintergrundprüfung vor der Wiedergabe, Erneut versuchen und Titel überspringen bei Fehlern.
-            - Fortsetzen mit letztem Musikordner und zuletzt gespieltem Titel bleibt erhalten.
 
             Nach dem Download `PartyPicker-Windows.zip` vollständig entpacken und
             `PartyPicker.exe` starten. Beim ersten Start kann Windows SmartScreen

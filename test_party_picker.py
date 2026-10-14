@@ -191,6 +191,21 @@ class PartyPickerTests(unittest.TestCase):
             wait_for(lambda: not self.w.jobs)
         self.assertIsNone(self.w.analyzer)
         self.assertFalse(self.w.findChildren(Analyze))
+    def test_resume_last_folder_track_selects_and_scrolls_to_it(self):
+        files = [self.root / f'{i:02d} - Artist - Song.flac' for i in range(40)]
+        last_track = files[-3]
+        self.w.tracks = files
+        self.w.sources.resize(400, 200)
+        self.w.show()
+        APP.processEvents()
+        with patch.object(self.w, 'play_path') as play_path:
+            self.w.scanned(files, '', 0, str(last_track))
+            APP.processEvents()
+        expected_row = len(files) - 3
+        self.assertEqual(self.w.index, expected_row)
+        self.assertEqual(self.w.sources.currentRow(), expected_row)
+        self.assertGreater(self.w.sources.verticalScrollBar().value(), 0)
+        play_path.assert_called_once_with(last_track, folder_track=True)
     def test_duplicate_dialog_choices_and_network_retry(self):
         class AutoDialog(QMessageBox):
             choice = 'Trotzdem aufnehmen'

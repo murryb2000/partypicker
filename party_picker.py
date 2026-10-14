@@ -977,7 +977,11 @@ class Window(QMainWindow):
     def play_track(self, index):
         if 0 <= index < len(self.tracks):
             self.index = index
-            self.sources.setCurrentRow(index)
+            item = self.sources.item(index)
+            self.sources.setCurrentItem(item)
+            # Selecting the restored last-played track is not enough when it is
+            # far down a large folder; reveal it before playback starts.
+            self.sources.scrollToItem(item)
             self.play_path(self.tracks[index], folder_track=True)
         elif index >= len(self.tracks) and self.tracks:
             self.player.stop()

@@ -1,5 +1,5 @@
 PARTYPICKER / Der Playlist-Generator
-by MurryB · Version 1.2.0
+by MurryB · Version 1.2.1
 ====================================
 
 KURZBESCHREIBUNG
@@ -137,6 +137,11 @@ NEU IN VERSION 1.1.2
 Beim Fortsetzen mit dem letzten Musikordner startet der zuletzt gespielte
 Titel aus diesem Ordner. Fehlt er inzwischen, startet der erste Titel.
 
+
+NEU IN VERSION 1.2.1
+--------------------
+- Beim Fortsetzen springt die Ordnerliste sichtbar zum zuletzt gespielten
+  Titel und startet ihn von vorn.
 
 NEU IN VERSION 1.2.0
 --------------------
