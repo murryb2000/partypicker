@@ -343,6 +343,12 @@ class PlaylistManager(QWidget):
         bar.addWidget(self.open)
         bar.addWidget(self.current)
         bar.addStretch()
+        self.go_start = QPushButton()
+        self.go_end = QPushButton()
+        self.go_start.clicked.connect(lambda: self.scroll.setValue(0))
+        self.go_end.clicked.connect(lambda: self.scroll.setValue(self.scroll.maximum()))
+        bar.addWidget(self.go_start)
+        bar.addWidget(self.go_end)
         layout.addLayout(bar)
         self.heading = QLabel()
         layout.addWidget(self.heading)
@@ -397,6 +403,10 @@ class PlaylistManager(QWidget):
 
     def retranslate(self):
         de = self.window.lang == 'de'
+        self.go_start.setText('Zum Listenanfang' if de else 'Go to beginning')
+        self.go_end.setText('Zum Listenende' if de else 'Go to end')
+        self.go_start.setToolTip('Ansicht zum ersten Titel bewegen' if de else 'Scroll to the first track')
+        self.go_end.setToolTip('Ansicht zum letzten Titel bewegen' if de else 'Scroll to the last track')
         self.undo_button.setText('Rückgängig [Strg+Z]' if de else 'Undo [Ctrl+Z]')
         self.to_start.setText('An den Anfang' if de else 'Move to beginning')
         self.to_end.setText('Ans Ende' if de else 'Move to end')
