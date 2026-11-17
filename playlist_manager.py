@@ -1,9 +1,9 @@
 import json
 from pathlib import Path
-from PySide6.QtCore import Qt, QAbstractListModel, QModelIndex, QMimeData, QItemSelectionModel, QThread, Signal, QUrl
-from PySide6.QtGui import QDrag, QKeySequence, QShortcut
+from PySide6.QtCore import Qt, QAbstractListModel, QModelIndex, QMimeData, QItemSelectionModel, QThread, Signal, QUrl, QSize, QTimer
+from PySide6.QtGui import QDrag, QKeySequence, QShortcut, QPixmap, QPainter, QColor
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-                               QListView, QAbstractItemView, QFileDialog)
+                               QListView, QAbstractItemView, QFileDialog, QScrollBar)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from tinytag import TinyTag
 
@@ -67,8 +67,10 @@ class PlaylistModel(QAbstractListModel):
         if not index.isValid() or index.row() >= len(self.entries):
             return None
         path = self.entries[index.row()]
+        if role == Qt.SizeHintRole:
+            return QSize(150, 28)
         if role == Qt.DisplayRole:
-            return self.labels.get(str(path), Path(path).stem)
+            return f'{index.row() + 1}. ' + self.labels.get(str(path), Path(path).stem)
         if role == Qt.ToolTipRole:
             return str(path)
         return None
@@ -110,6 +112,8 @@ class PlaylistModel(QAbstractListModel):
 
 
 class PlaylistView(QListView):
+    scroll_requested = Signal(int)
+    resized = Signal()
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
@@ -120,9 +124,61 @@ class PlaylistView(QListView):
         self.setDefaultDropAction(Qt.MoveAction)
         self.setAutoScroll(True)
         self.setAutoScrollMargin(50)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setUniformItemSizes(True)
+        self.setSpacing(0)
+        self.setStyleSheet("QListView { background:#101827; border:1px solid #425970; } QListView::item { margin:1px 2px; padding-left:7px; background:#293d53; border:1px solid #425970; border-radius:4px; } QListView::item:selected { background:#176c62; border:1px solid #32d1b0; } QListView::item:hover { border:1px solid #92b5d0; }")
+        self.visible_start, self.visible_end = 0, 0
+        self.edge_direction = 0
+        self.edge_timer = QTimer(self)
+        self.edge_timer.setInterval(90)
+        self.edge_timer.timeout.connect(lambda: self.scroll_requested.emit(self.edge_direction))
         self.sweeping = False
         self.swept = set()
         self.sweep_last = None
+
+    def wheelEvent(self, event):
+        delta = event.angleDelta().y() or event.pixelDelta().y()
+        if delta:
+            self.scroll_requested.emit(-3 if delta > 0 else 3)
+        event.accept()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.resized.emit()
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasFormat(MIME):
+            event.setDropAction(Qt.MoveAction)
+            event.accept()
+
+    def dragMoveEvent(self, event):
+        super().dragMoveEvent(event)
+        y = event.position().y()
+        self.edge_direction = -1 if y < 35 else (1 if y > self.viewport().height() - 35 else 0)
+        if self.edge_direction:
+            self.edge_timer.start()
+        else:
+            self.edge_timer.stop()
+        event.setDropAction(Qt.MoveAction)
+        event.accept()
+
+    def dragLeaveEvent(self, event):
+        self.edge_timer.stop()
+        super().dragLeaveEvent(event)
+
+    def dropEvent(self, event):
+        self.edge_timer.stop()
+        idx = self.indexAt(event.position().toPoint())
+        destination = self.visible_end
+        if idx.isValid():
+            destination = idx.row() + (event.position().y() > self.visualRect(idx).center().y())
+        if self.model().dropMimeData(event.mimeData(), Qt.MoveAction, destination, 0, QModelIndex()):
+            event.setDropAction(Qt.MoveAction)
+            event.accept()
+        else:
+            event.ignore()
 
     def mousePressEvent(self, event):
         idx = self.indexAt(event.position().toPoint())
@@ -165,7 +221,18 @@ class PlaylistView(QListView):
         mime.setData(MIME, json.dumps(rows).encode('utf-8'))
         drag = QDrag(self)
         drag.setMimeData(mime)
+        pixmap = QPixmap(min(520, self.viewport().width()), 28)
+        pixmap.fill(QColor('#176c62'))
+        painter = QPainter(pixmap)
+        painter.setPen(QColor('#ffffff'))
+        label = self.model().data(self.model().index(rows[0], 0))
+        if len(rows) > 1:
+            label = f'{len(rows)} × ' + label
+        painter.drawText(pixmap.rect().adjusted(8, 0, -8, 0), Qt.AlignVCenter, label)
+        painter.end()
+        drag.setPixmap(pixmap)
         drag.exec(Qt.MoveAction)
+        self.edge_timer.stop()
 
 
 class PlaylistManager(QWidget):
@@ -196,13 +263,29 @@ class PlaylistManager(QWidget):
         self.heading = QLabel()
         layout.addWidget(self.heading)
         panes = QHBoxLayout()
+        self.scroll = QScrollBar(Qt.Vertical)
+        self.capacity = 1
+        self.scroll.valueChanged.connect(self.update_pages)
         self.views = [PlaylistView(), PlaylistView()]
         self.selection = QItemSelectionModel(self.model, self)
         for view in self.views:
             view.setModel(self.model)
             view.setSelectionModel(self.selection)
+            view.scroll_requested.connect(lambda delta: self.scroll.setValue(self.scroll.value() + delta))
+            view.resized.connect(self.update_pages)
             panes.addWidget(view)
+        panes.addWidget(self.scroll)
         layout.addLayout(panes, 1)
+        bottom = QHBoxLayout()
+        self.to_start = QPushButton()
+        self.to_end = QPushButton()
+        self.to_start.clicked.connect(lambda: self.move_to_edge(False))
+        self.to_end.clicked.connect(lambda: self.move_to_edge(True))
+        bottom.addWidget(self.to_start)
+        bottom.addWidget(self.to_end)
+        bottom.addStretch()
+        layout.addLayout(bottom)
+        self.model.modelReset.connect(self.update_pages)
         self.status = QLabel()
         layout.addWidget(self.status)
         self.space = QShortcut(QKeySequence('Space'), self)
@@ -212,11 +295,42 @@ class PlaylistManager(QWidget):
 
     def retranslate(self):
         de = self.window.lang == 'de'
+        self.to_start.setText('An den Anfang' if de else 'Move to beginning')
+        self.to_end.setText('Ans Ende' if de else 'Move to end')
         self.back.setText('← Zurück zum PartyPicker' if de else '← Back to PartyPicker')
         self.open.setText('Playlist öffnen …' if de else 'Open playlist …')
         self.current.setText('Aktuelle Playlist übernehmen' if de else 'Use current playlist')
-        self.heading.setText('PLAYLIST-MANAGER · Beide Listen zeigen dieselbe Playlist' if de else 'PLAYLIST MANAGER · Both views show the same playlist')
+        self.heading.setText('PLAYLIST-MANAGER · Links beginnt die Liste · rechts geht sie weiter' if de else 'PLAYLIST MANAGER · Playlist continues from left to right')
         self.status.setText('Strg + Ziehen: markieren · Auswahl ziehen: verschieben · Leertaste: vorhören' if de else 'Ctrl + drag: select · Drag selection to reorder · Space: preview')
+
+    def update_pages(self, *args):
+        if not self.views:
+            return
+        capacity = max(1, min(v.viewport().height() for v in self.views) // 28)
+        self.capacity = capacity
+        count = self.model.rowCount()
+        self.scroll.blockSignals(True)
+        self.scroll.setRange(0, max(0, count - 2 * capacity))
+        self.scroll.setPageStep(2 * capacity)
+        start = self.scroll.value()
+        self.scroll.blockSignals(False)
+        for column, view in enumerate(self.views):
+            first = start + column * capacity
+            end = min(count, first + capacity)
+            view.visible_start, view.visible_end = first, end
+            for row in range(count):
+                hide = not first <= row < end
+                if view.isRowHidden(row) != hide:
+                    view.setRowHidden(row, hide)
+            view.verticalScrollBar().setValue(0)
+
+    def move_to_edge(self, end):
+        rows = [i.row() for i in self.selection.selectedRows()]
+        if not rows:
+            return
+        updated = moved_entries(self.model.entries, rows, len(self.model.entries) if end else 0)
+        if updated != self.model.entries:
+            self.reorder(updated)
 
     def reload(self):
         if self.metadata in self.metadata_jobs and self.metadata.isRunning():

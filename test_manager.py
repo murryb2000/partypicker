@@ -45,4 +45,34 @@ class ManagerTests(unittest.TestCase):
         self.assertEqual(manager.player.source().toLocalFile(), '/b.mp3')
         manager.stop()
 
+# Continuous columns and shared scrolling regression.
+class ContinuousColumnsTests(unittest.TestCase):
+    def test_columns_scroll_and_edge_buttons(self):
+        window = SimpleNamespace(lang='de', user_volume=.5, show_picker=lambda: None)
+        manager = PlaylistManager(window)
+        manager.resize(1000, 700)
+        entries = [Path(f'/track-{i}.mp3') for i in range(120)]
+        manager.model.reset_entries(entries)
+        manager.show()
+        app.processEvents()
+        manager.update_pages()
+        c = manager.capacity
+        self.assertEqual(manager.views[1].visible_start, c)
+        manager.scroll.setValue(15)
+        self.assertEqual(manager.views[0].visible_start, 15)
+        self.assertEqual(manager.views[1].visible_start, 15 + c)
+        manager.scroll.setValue(manager.scroll.maximum())
+        self.assertEqual(manager.views[1].visible_end, len(entries))
+        self.assertEqual(manager.views[0].visible_end, manager.views[1].visible_start)
+        changes = []
+        manager.reorder = changes.append
+        for row in (11, 19):
+            manager.selection.select(manager.model.index(row, 0), QItemSelectionModel.Select)
+        manager.move_to_edge(False)
+        self.assertEqual(changes[-1][:2], [entries[11], entries[19]])
+        manager.move_to_edge(True)
+        self.assertEqual(changes[-1][-2:], [entries[11], entries[19]])
+        manager.stop()
+        manager.close()
+
 if __name__ == '__main__': unittest.main()
