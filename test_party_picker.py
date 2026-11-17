@@ -38,9 +38,66 @@ class PlayerStub:
     def isSeekable(self): return True
     def setPosition(self, value): self.pos = value
     def stop(self): pass
+    def play(self): pass
+    def mediaStatus(self): return QMediaPlayer.LoadedMedia
 
 
 class PartyPickerTests(unittest.TestCase):
+    def test_real_backend_preview_start_on_two_successive_tracks(self):
+        for path in (self.a, self.b):
+            sf.write(path, np.zeros(45 * 22050, dtype='float32'), 22050)
+        self.w.preview_seconds.setValue(30)
+        self.w.tracks = [self.a, self.b]
+        for index, path in enumerate(self.w.tracks):
+            self.w.play_track(index)
+            wait_for(lambda: self.w.current_path() == path and self.w.pending_seek is None
+                     and self.w.player.position() >= 29750, timeout=12)
+            self.assertFalse(self.w.preview_muted)
+            self.assertEqual(self.errors, [])
+
+
+    def test_preview_waits_for_loaded_media_and_retries_reset_seek(self):
+        self.stub(self.a)
+        player = self.w.player
+        state = {'status': QMediaPlayer.LoadingMedia, 'seekable': False}
+        player.mediaStatus = lambda: state['status']
+        player.isSeekable = lambda: state['seekable']
+        self.w.pending_seek = 30000
+        self.w.apply_preview_start()
+        self.assertEqual(player.pos, 0)
+        self.assertFalse(self.w.preview_started)
+        state['status'] = QMediaPlayer.LoadedMedia
+        self.w.apply_preview_start()
+        self.assertFalse(self.w.preview_started)
+        state['seekable'] = True
+        self.w.apply_preview_start()
+        self.assertEqual(player.pos, 30000)
+        self.assertTrue(self.w.preview_muted)
+        player.pos = 0  # Windows backend resets the first seek on startup.
+        self.w.preview_seek_at -= 1
+        self.w.apply_preview_start()
+        self.assertEqual(player.pos, 30000)
+        self.assertIsNotNone(self.w.pending_seek)
+        self.w.preview_seek_at -= 1
+        self.w.apply_preview_start()
+        self.assertIsNone(self.w.pending_seek)
+        self.assertFalse(self.w.preview_muted)
+        self.assertGreater(self.w.audio.volume(), 0)
+
+    def test_preview_zero_and_short_track(self):
+        for duration, requested, expected in [(60000, 0, 0), (18000, 30000, 8000), (8000, 30000, 0)]:
+            self.w.player = PlayerStub(self.a, duration)
+            self.w.pending_seek = requested
+            self.w.preview_started = False
+            self.w.apply_preview_start()
+            self.assertEqual(self.w.player.pos, expected)
+            if expected:
+                self.w.preview_seek_at -= 1
+                self.w.apply_preview_start()
+            self.assertIsNone(self.w.pending_seek)
+            self.assertFalse(self.w.preview_muted)
+
+
     def test_manager_undo_restores_saved_order(self):
         self.w.playlist = self.root / 'manager.m3u'
         self.save([self.a, self.b])
@@ -95,6 +152,9 @@ class PartyPickerTests(unittest.TestCase):
         self.w.pending_seek = 30000
         self.w.apply_preview_start()
         self.assertEqual(self.w.player.pos, 30000)
+        self.w.preview_seek_at -= 1
+        self.w.apply_preview_start()
+        self.assertIsNone(self.w.pending_seek)
         self.w.track_gain = .5
         self.w.normalize.setChecked(True)
         self.assertAlmostEqual(self.w.audio.volume(), .325, places=5)

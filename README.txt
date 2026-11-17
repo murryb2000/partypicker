@@ -1,5 +1,5 @@
 PARTYPICKER / Der Playlist-Generator
-by MurryB · Version 1.2.1
+by MurryB · Version 2.0.0
 ====================================
 
 KURZBESCHREIBUNG
@@ -166,5 +166,12 @@ NEU IN VERSION 1.2.0
   „Titel überspringen“. Die Dateiprüfung läuft im Hintergrund; ein nicht
   antwortendes NAS kann trotzdem längere Wartezeiten verursachen.
 
-2.0 Beta – Playlist-Manager
-Zwei Ansichten derselben Playlist, Mehrfachauswahl mit Strg und Ziehen, Verschieben per Drag-and-drop und Vorhören per Leertaste. BPM wird angezeigt, wenn es in den Musikdatei-Tags vorhanden ist. Änderungen werden sofort gespeichert. Bitte die Beta zuerst mit einer Kopie der Playlist testen.
+Playlist-Manager in Version 2.0.0
+
+Der Button unten rechts im linken PartyPicker-Bereich öffnet den Manager im selben Fenster. Die aktuelle Playlist wird übernommen; alternativ kann eine M3U-/M3U8-Datei geladen werden. Links beginnt die Liste, rechts wird sie fortgeführt. Ein gemeinsamer Scrollbalken bewegt beide Spalten.
+
+Titel mit Strg auswählen oder mit Strg und gedrückter linker Maustaste überstreichen. Die Auswahl anschließend ziehen; die grüne Linie markiert die Einfügestelle. Die Ziehvorschau zeigt die ersten drei Titel und bei Bedarf +Restanzahl. Am oberen/unteren Rand scrollt die Liste automatisch: alle 1,5 Sekunden steigt die Geschwindigkeit auf 4, 8, 16, 28, 44 und maximal 60 Titel pro Sekunde. Beim Verlassen des Randbereichs endet das Scrollen und die Beschleunigung wird zurückgesetzt.
+
+„An den Anfang“/„Ans Ende“ verschiebt ausgewählte Titel. „Zum Listenanfang“/„Zum Listenende“ bewegt nur die Ansicht. „Rückgängig“/Strg+Z nimmt eine Änderung zurück. Änderungen werden sofort gespeichert. Mit genau einem ausgewählten Titel schaltet die Leertaste zwischen Wiedergabe und Pause um. BPM wird aus vorhandenen Tags gelesen; es wird keine automatische BPM-Analyse durchgeführt.
+
+Korrektur in 2.0.0: „Vorhören ab“ wartet auf das Laden und bestätigt den tatsächlichen Startpunkt. Während des Sprungs bleibt der Ton kurz stumm. Die Behandlung kurzer Titel bleibt erhalten.

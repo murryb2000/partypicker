@@ -1,5 +1,5 @@
 PARTYPICKER / The Playlist Generator
-by MurryB · Version 1.2.1
+by MurryB · Version 2.0.0
 ====================================
 
 OVERVIEW
@@ -146,5 +146,12 @@ NEW IN VERSION 1.2.0
 - Missing file or playback error: "Retry" or "Skip track". File checks run in
   the background; an unresponsive NAS can still cause longer waits.
 
-2.0 Beta – Playlist manager
-Two views of the same playlist, Ctrl-drag selection, drag-and-drop reordering, and Space to preview. BPM is shown when present in the audio file tags. Changes are saved immediately. Please try the beta with a copy of your playlist first.
+PLAYLIST MANAGER IN VERSION 2.0.0
+
+The button at the lower right of the PartyPicker playback pane opens the manager in the same window. It uses the current playlist or opens an M3U/M3U8 file. The playlist continues from the left column into the right column; both share one scrollbar.
+
+Use Ctrl-click or Ctrl with the left mouse button to select tracks, then drag the selection. A green insertion line shows the drop position. The drag preview shows three tracks plus the remaining count. Edge scrolling accelerates every 1.5 seconds: 4, 8, 16, 28, 44, then at most 60 tracks per second. Leaving the edge stops scrolling and resets acceleration.
+
+Move to beginning/end changes track order. Go to beginning/end only moves the view. Undo or Ctrl+Z restores a previous edit. Every edit is saved immediately. Space toggles preview playback for one selected track. BPM is read from existing file tags; there is no automatic BPM analysis.
+
+Fixed in 2.0.0: Preview from waits for loading and confirms the actual start position. Audio is briefly muted during seeking. Short-track handling is preserved.

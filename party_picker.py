@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+import time
 from pathlib import Path
 import numpy as np
 import soundfile as sf
@@ -358,6 +359,11 @@ class Window(QMainWindow):
         self.user_volume, self.track_gain = .65, 1.0
         self.audio.setVolume(self.user_volume)
         self.play_token, self.pending_seek = 0, None
+        self.preview_muted, self.preview_started = False, False
+        self.preview_attempts, self.preview_seek_at = 0, 0.0
+        self.preview_timer = QTimer(self)
+        self.preview_timer.setInterval(50)
+        self.preview_timer.timeout.connect(self.apply_preview_start)
         self.duplicate_job = None
         self.identity_cache, self.undo_stack, self.source_rows = {}, [], {}
         self.error_pending = None
@@ -1048,7 +1054,10 @@ class Window(QMainWindow):
         self.player.stop()
         self.player.setSource(QUrl())
         self.listened_ms, self.last_position = 0, 0
+        self.preview_timer.stop()
         self.pending_seek = None
+        self.preview_muted, self.preview_started = False, False
+        self.preview_attempts, self.preview_seek_at = 0, 0.0
         self.track_gain = 1.0
         self.apply_volume()
         self.title.setText(path.stem)
@@ -1073,9 +1082,12 @@ class Window(QMainWindow):
         self.identity_cache[path_key(path)] = identity
         if self.requested_folder_track:
             self.settings.setValue('last_music_track', str(path))
-        self.pending_seek = self.preview_seconds.value() * 1000
+        # setSource can emit transitional duration/seekable signals. Arm the
+        # preview only afterwards, then wait for loaded media before playback.
         self.player.setSource(QUrl.fromLocalFile(str(path)))
-        self.player.play()
+        self.pending_seek = self.preview_seconds.value() * 1000
+        self.preview_timer.start()
+        self.apply_preview_start()
         self.analyzer = Analyze(token, path, self)
         self.analyzer.result.connect(self.analyzed)
         self.launch(self.analyzer)
@@ -1100,11 +1112,54 @@ class Window(QMainWindow):
         self.position(self.player.position())
 
     def apply_preview_start(self):
-        if self.pending_seek is not None and self.player.isSeekable() and self.player.duration() > 0:
-            target = preview_position(self.pending_seek, self.player.duration())
-            self.pending_seek = None
-            self.last_position = target
+        if self.pending_seek is None:
+            return
+        if self.player.mediaStatus() not in (QMediaPlayer.LoadedMedia, QMediaPlayer.BufferedMedia):
+            return
+        if self.player.duration() <= 0:
+            return
+        target = preview_position(self.pending_seek, self.player.duration())
+        if target > 0 and not self.player.isSeekable():
+            return
+        now = time.monotonic()
+        if not self.preview_started:
+            self.preview_started = True
+            self.preview_muted = target > 0
+            self.preview_seek_at = now
+            self.apply_volume()
+            self.player.play()
+            if target > 0:
+                self.preview_seek_at = now
+                self.preview_attempts = 1
+                self.player.setPosition(target)
+            else:
+                self.finish_preview_start()
+            return
+        # Some backends reset an early seek when playback starts. Keep audio
+        # muted and the request alive until the actual position is confirmed.
+        if now - self.preview_seek_at < .15:
+            return
+        if self.player.position() >= target - 250:
+            self.last_position = self.player.position()
+            self.finish_preview_start()
+        elif self.preview_attempts < 30:
+            self.preview_attempts += 1
+            self.preview_seek_at = now
             self.player.setPosition(target)
+        else:
+            self.preview_timer.stop()
+            self.player.stop()
+            self.pending_seek = None
+            self.preview_muted = False
+            self.schedule_playback_error(self.play_token, self.current_path(),
+                'Vorhör-Startpunkt konnte nicht erreicht werden.' if self.lang == 'de'
+                else 'Could not seek to the preview start position.')
+
+    def finish_preview_start(self):
+        self.preview_timer.stop()
+        self.pending_seek = None
+        self.preview_muted = False
+        self.apply_volume()
 
     def volume_changed(self, value):
         self.user_volume = value / 100
@@ -1115,10 +1170,16 @@ class Window(QMainWindow):
         self.apply_volume()
 
     def apply_volume(self):
+        if self.preview_muted:
+            self.audio.setVolume(0.0)
+            return
         enabled = hasattr(self, 'normalize') and self.normalize.isChecked()
         self.audio.setVolume(min(1.0, self.user_volume * (self.track_gain if enabled else 1.0)))
 
     def playback_failed(self, *args):
+        self.preview_timer.stop()
+        self.pending_seek = None
+        self.preview_muted = False
         path = self.current_path()
         if path:
             self.schedule_playback_error(self.play_token, path, self.player.errorString())
@@ -1296,6 +1357,8 @@ class Window(QMainWindow):
         self.wave.update()
 
     def media_status(self, status):
+        if status in (QMediaPlayer.LoadedMedia, QMediaPlayer.BufferedMedia):
+            self.apply_preview_start()
         if status == QMediaPlayer.EndOfMedia:
             path = self.current_path()
             if (path and getattr(self, 'requested_folder_track', False)
@@ -1309,6 +1372,7 @@ class Window(QMainWindow):
                 QTimer.singleShot(0, lambda: self.play_track(self.index + 1) if token == self.play_token else None)
 
     def closeEvent(self, event):
+        self.preview_timer.stop()
         if hasattr(self, "manager"):
             self.manager.stop()
         self.flush_history()

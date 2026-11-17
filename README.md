@@ -1,6 +1,17 @@
 # PARTYPICKER / Der Playlist-Generator
 
-Lokale Desktop-App zum Durchhören von FLAC- und MP3-Sammlungen und Zusammenstellen einer Party-Playlist. Python mit PySide6 ermöglicht direkte Dateizugriffe und Speichern ohne Browser-Berechtigungsdialoge. Wiedergabe über Qt Multimedia; Waveform aus den echten Audiodaten über SoundFile. TinyTag liest ausschließlich Artist- und Title-Metadaten. Keine Musik-Uploads.
+Lokale Desktop-App zum Durchhören von FLAC- und MP3-Sammlungen und Zusammenstellen einer Party-Playlist. Python mit PySide6 ermöglicht direkte Dateizugriffe und Speichern ohne Browser-Berechtigungsdialoge. Wiedergabe über Qt Multimedia; Waveform aus den echten Audiodaten über SoundFile. TinyTag liest Artist-, Titel- und vorhandene BPM-Metadaten. Keine Musik-Uploads.
+
+## Neu in Version 2.0.0
+
+- Playlist-Manager im selben Fenster, erreichbar unten rechts im PartyPicker.
+- Fortlaufende Playlist über zwei Spalten mit gemeinsamem Scrollbalken.
+- Mehrfachauswahl, Drag-and-drop mit grüner Einfügelinie und Ziehvorschau mit drei Titeln plus Restanzahl.
+- Automatisches Scrollen am Rand: 4, 8, 16, 28, 44 und maximal 60 Titel pro Sekunde, Stufenwechsel alle 1,5 Sekunden.
+- Separate Buttons zum Verschieben der Auswahl und zum Springen der Ansicht an Listenanfang oder Listenende.
+- Rückgängig per Button oder Strg+Z, auch im Manager; jede Änderung wird gespeichert.
+- Vorhören im Manager per Leertaste, BPM aus vorhandenen Datei-Tags.
+- Behoben: Der Vorhör-Startpunkt wird nach dem Laden angewendet und bestätigt; ein beim Wiedergabestart zurückgesetzter Sprung wird wiederholt.
 
 ## Neu in Version 1.2.1
 
@@ -105,6 +116,12 @@ Leertaste, A und beide Enter-Tasten behalten ihre Funktion. Beim Start kann eine
 
 Ab Version 1.1.1 kann beim Fortsetzen der zuletzt gewählte Musikordner zusätzlich geöffnet werden. Die gespeicherte Unterordner-Einstellung wird übernommen. Ab Version 1.1.2 startet nach dem Scan der zuletzt gespielte Titel aus dem Ordner; ist er nicht mehr vorhanden, beginnt die Wiedergabe beim ersten Titel. Wurde noch kein Musikordner gespeichert, lässt sich über den hellgrau hervorgehobenen Haken beim Fortsetzen ein Ordner auswählen. Im Kopfbereich stehen neben dem Logo PARTYPICKER, der lokalisierte Untertitel und „by MurryB“ untereinander.
 
-## 2.0 Beta – Playlist-Manager
+## Playlist-Manager in Version 2.0.0
 
-Zwei Ansichten derselben Playlist, Mehrfachauswahl mit Strg und Ziehen, Verschieben per Drag-and-drop und Vorhören per Leertaste. BPM wird angezeigt, wenn es in den Musikdatei-Tags vorhanden ist. Änderungen werden sofort gespeichert. Bitte die Beta zuerst mit einer Kopie der Playlist testen.
+Der Button unten rechts im linken PartyPicker-Bereich öffnet den Manager im selben Fenster. Die aktuelle Playlist wird übernommen; alternativ kann eine M3U-/M3U8-Datei geladen werden. Links beginnt die Liste, rechts wird sie fortgeführt. Ein gemeinsamer Scrollbalken bewegt beide Spalten.
+
+Titel mit Strg auswählen oder mit Strg und gedrückter linker Maustaste überstreichen. Die Auswahl anschließend ziehen; die grüne Linie markiert die Einfügestelle. Die Ziehvorschau zeigt die ersten drei Titel und bei Bedarf +Restanzahl. Am oberen/unteren Rand scrollt die Liste automatisch: alle 1,5 Sekunden steigt die Geschwindigkeit auf 4, 8, 16, 28, 44 und maximal 60 Titel pro Sekunde. Beim Verlassen des Randbereichs endet das Scrollen und die Beschleunigung wird zurückgesetzt.
+
+„An den Anfang“/„Ans Ende“ verschiebt ausgewählte Titel. „Zum Listenanfang“/„Zum Listenende“ bewegt nur die Ansicht. „Rückgängig“/Strg+Z nimmt eine Änderung zurück. Änderungen werden sofort gespeichert. Mit genau einem ausgewählten Titel schaltet die Leertaste zwischen Wiedergabe und Pause um. BPM wird aus vorhandenen Tags gelesen; es wird keine automatische BPM-Analyse durchgeführt.
+
+Korrektur in 2.0.0: „Vorhören ab“ wartet auf das Laden und bestätigt den tatsächlichen Startpunkt. Während des Sprungs bleibt der Ton kurz stumm. Die Behandlung kurzer Titel bleibt erhalten.
