@@ -165,3 +165,6 @@ NEU IN VERSION 1.2.0
 - Bei fehlender Musikdatei oder Wiedergabefehler: „Erneut versuchen“ oder
   „Titel überspringen“. Die Dateiprüfung läuft im Hintergrund; ein nicht
   antwortendes NAS kann trotzdem längere Wartezeiten verursachen.
+
+2.0 Beta – Playlist-Manager
+Zwei Ansichten derselben Playlist, Mehrfachauswahl mit Strg und Ziehen, Verschieben per Drag-and-drop und Vorhören per Leertaste. BPM wird angezeigt, wenn es in den Musikdatei-Tags vorhanden ist. Änderungen werden sofort gespeichert. Bitte die Beta zuerst mit einer Kopie der Playlist testen.

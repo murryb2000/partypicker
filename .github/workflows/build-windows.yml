@@ -31,7 +31,7 @@ jobs:
       - name: Regressionstests
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m unittest -v test_party_picker
+        run: python -m unittest -v test_party_picker test_manager
 
       - name: PartyPicker.exe bauen
         run: >-
@@ -78,18 +78,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: PartyPicker ${{ github.ref_name }}
+          prerelease: true
           body: |
-            PartyPicker 1.2.1 – Zum zuletzt gespielten Titel zurückspringen
-
-            - Beim Fortsetzen springt die Ordnerliste zum zuletzt gespielten Titel und startet ihn von vorn.
-
-            - Gehörte Titel grau, aufgenommene grün und manuell übersprungene orange; Markierungen bleiben gespeichert.
-            - Duplikat-Nachfrage anhand von Interpret und Titel, auch bei unterschiedlichen Dateien.
-            - Einstellbare Startposition fürs Vorhören und optionale Lautstärkeangleichung.
-            - Rückgängig per Button oder Strg+Z, mit automatischem Speichern.
-            - Hintergrundprüfung vor der Wiedergabe, Erneut versuchen und Titel überspringen bei Fehlern.
-
-            Nach dem Download `PartyPicker-Windows.zip` vollständig entpacken und
-            `PartyPicker.exe` starten. Beim ersten Start kann Windows SmartScreen
-            wegen der fehlenden digitalen Signatur warnen.
+            PartyPicker 2.0 Beta: Playlist-Manager mit zwei Ansichten derselben Playlist.
+            Titel auswählen, per Drag-and-drop verschieben und per Leertaste vorhören.
+            BPM wird angezeigt, wenn es in den Musikdatei-Tags vorhanden ist.
+            Die Beta bitte zunächst mit einer Kopie der Playlist ausprobieren.
           files: PartyPicker-Windows.zip

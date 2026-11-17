@@ -10,8 +10,9 @@ from PySide6.QtGui import (QColor, QDesktopServices, QIcon, QPainter, QPen,
                            QShortcut, QKeySequence, QPixmap)
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QGridLayout, QPushButton, QLabel, QListWidget, QFileDialog, QMessageBox,
-    QSplitter, QCheckBox, QSlider, QComboBox, QSpinBox)
+    QSplitter, QCheckBox, QSlider, QComboBox, QSpinBox, QStackedWidget)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
+from playlist_manager import PlaylistManager
 from core import (natural_key, path_key, read_playlist, save_playlist,
                   save_text_playlist, text_entry, track_identity, preview_position, normalization_gain)
 
@@ -381,7 +382,9 @@ class Window(QMainWindow):
         self.player.mediaStatusChanged.connect(self.media_status)
         self.player.errorOccurred.connect(self.playback_failed)
         root = QWidget()
-        self.setCentralWidget(root)
+        self.pages = QStackedWidget()
+        self.setCentralWidget(self.pages)
+        self.pages.addWidget(root)
         layout = QVBoxLayout(root)
         body = QSplitter(Qt.Horizontal)
         player_pane = QWidget()
@@ -419,6 +422,9 @@ class Window(QMainWindow):
         branding.addWidget(self.subtitle)
         branding.addWidget(credit)
         head_row.addLayout(branding, 1)
+        self.manager_button = QPushButton('Playlist-Manager')
+        self.manager_button.clicked.connect(self.show_manager)
+        head_row.addWidget(self.manager_button)
         self.language_label = QLabel(self.t('language'))
         head_row.addWidget(self.language_label)
         self.language_box = QComboBox()
@@ -581,6 +587,25 @@ class Window(QMainWindow):
         self.keyboard_box.currentIndexChanged.connect(self.configure_keyboard)
         self.configure_keyboard()
         self.statusBar().showMessage(self.t('ready'))
+        self.manager = PlaylistManager(self)
+        self.pages.addWidget(self.manager)
+
+    def show_manager(self):
+        if self.save_job or self.duplicate_job:
+            self.statusBar().showMessage(self.t('save_in_progress'))
+            return
+        self.player.pause()
+        for shortcut in self.keyboard_shortcuts:
+            shortcut.setEnabled(False)
+        self.manager.reload()
+        self.pages.setCurrentWidget(self.manager)
+        self.manager.views[0].setFocus()
+
+    def show_picker(self):
+        self.manager.stop()
+        self.pages.setCurrentIndex(0)
+        for shortcut in self.keyboard_shortcuts:
+            shortcut.setEnabled(True)
 
     def t(self, key, **values):
         return TEXTS[self.lang][key].format(**values)
@@ -658,6 +683,8 @@ class Window(QMainWindow):
         self.retranslate_ui()
 
     def retranslate_ui(self):
+        if hasattr(self, 'manager'):
+            self.manager.retranslate()
         self.setWindowTitle(self.t('window_title'))
         self.subtitle.setText(self.t('subtitle'))
         self.language_label.setText(self.t('language'))
@@ -750,6 +777,8 @@ class Window(QMainWindow):
         self.save_job = None
         self.text_cache.update(cache_updates)
         self.set_save_busy(False)
+        if hasattr(self, 'manager'):
+            self.manager.setEnabled(True)
         if error:
             self.error(self.t('not_saved', error=self.translate_core_error(error)))
             return
@@ -1270,6 +1299,8 @@ class Window(QMainWindow):
                 QTimer.singleShot(0, lambda: self.play_track(self.index + 1) if token == self.play_token else None)
 
     def closeEvent(self, event):
+        if hasattr(self, "manager"):
+            self.manager.stop()
         self.flush_history()
         self.settings.sync()
         self.play_token += 1

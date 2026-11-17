@@ -104,3 +104,7 @@ Unter den Listen lässt sich die Tastaturbelegung auswählen. Die Auswahl bleibt
 Leertaste, A und beide Enter-Tasten behalten ihre Funktion. Beim Start kann eine neue Playlist angelegt oder die letzte fortgesetzt werden. Beim ersten Start dieser Version ist Fortsetzen erst verfügbar, nachdem eine Playlist geöffnet oder gespeichert wurde. Eigene TXT-Sitzungen werden anhand zusätzlich gespeicherter Musikpfade fortgesetzt; extern veränderte TXT-Listen werden dabei nicht überschrieben.
 
 Ab Version 1.1.1 kann beim Fortsetzen der zuletzt gewählte Musikordner zusätzlich geöffnet werden. Die gespeicherte Unterordner-Einstellung wird übernommen. Ab Version 1.1.2 startet nach dem Scan der zuletzt gespielte Titel aus dem Ordner; ist er nicht mehr vorhanden, beginnt die Wiedergabe beim ersten Titel. Wurde noch kein Musikordner gespeichert, lässt sich über den hellgrau hervorgehobenen Haken beim Fortsetzen ein Ordner auswählen. Im Kopfbereich stehen neben dem Logo PARTYPICKER, der lokalisierte Untertitel und „by MurryB“ untereinander.
+
+## 2.0 Beta – Playlist-Manager
+
+Zwei Ansichten derselben Playlist, Mehrfachauswahl mit Strg und Ziehen, Verschieben per Drag-and-drop und Vorhören per Leertaste. BPM wird angezeigt, wenn es in den Musikdatei-Tags vorhanden ist. Änderungen werden sofort gespeichert. Bitte die Beta zuerst mit einer Kopie der Playlist testen.

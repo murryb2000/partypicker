@@ -145,3 +145,6 @@ NEW IN VERSION 1.2.0
   slider. This setting and the preview position persist across restarts.
 - Missing file or playback error: "Retry" or "Skip track". File checks run in
   the background; an unresponsive NAS can still cause longer waits.
+
+2.0 Beta – Playlist manager
+Two views of the same playlist, Ctrl-drag selection, drag-and-drop reordering, and Space to preview. BPM is shown when present in the audio file tags. Changes are saved immediately. Please try the beta with a copy of your playlist first.
