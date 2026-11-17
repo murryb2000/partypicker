@@ -2,7 +2,7 @@ import json
 import time
 from pathlib import Path
 from PySide6.QtCore import Qt, QAbstractListModel, QModelIndex, QMimeData, QItemSelectionModel, QThread, Signal, QUrl, QSize, QTimer
-from PySide6.QtGui import QDrag, QKeySequence, QShortcut, QPixmap, QPainter, QColor, QPen, QCursor
+from PySide6.QtGui import QDrag, QKeySequence, QShortcut, QPixmap, QPainter, QColor, QPen, QCursor, QGuiApplication
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
                                QListView, QAbstractItemView, QFileDialog, QScrollBar)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
@@ -136,6 +136,7 @@ class PlaylistView(QListView):
         self.setSpacing(0)
         self.setStyleSheet("QListView { background:#101827; border:1px solid #425970; } QListView::item { margin:1px 2px; padding-left:7px; background:#293d53; border:1px solid #425970; border-radius:4px; } QListView::item:selected { background:#176c62; border:1px solid #32d1b0; } QListView::item:hover { border:1px solid #92b5d0; }")
         self.visible_start, self.visible_end = 0, 0
+        self.shown_rows = None
         self.edge_direction = 0
         self.edge_timer = QTimer(self)
         self.edge_timer.setInterval(30)
@@ -187,10 +188,19 @@ class PlaylistView(QListView):
         if owner:
             left = owner.mapToGlobal(owner.rect().topLeft()).x()
             right = owner.mapToGlobal(owner.rect().topRight()).x()
-            in_width = left <= cursor.x() <= right
+            in_width = left - 8 <= cursor.x() <= right + 8
         else:
             in_width = 0 <= point.x() <= rect.width()
-        direction = (-1 if point.y() < 35 else 1 if point.y() >= rect.height() - 35 else 0) if in_width else 0
+        screen = QGuiApplication.screenAt(cursor)
+        screen_rect = screen.geometry() if screen else None
+        at_top = screen_rect is not None and cursor.y() <= screen_rect.top() + 3
+        at_bottom = screen_rect is not None and cursor.y() >= screen_rect.bottom() - 3
+        direction = -1 if at_top else 1 if at_bottom else 0
+        if not direction and in_width:
+            # A wider release zone prevents tiny cursor movements from resetting
+            # the hold clock while a user remains at the same edge.
+            margin = 60 if self.edge_direction else 35
+            direction = -1 if point.y() < margin else 1 if point.y() >= rect.height() - margin else 0
         now = time.monotonic()
         if direction != self.edge_direction:
             self.edge_direction = direction
@@ -203,6 +213,12 @@ class PlaylistView(QListView):
             if rows:
                 self.scroll_requested.emit(direction * rows)
         self.edge_last = now
+        if owner:
+            if direction:
+                percent = round(edge_speed(now - self.edge_since) / 4 * 100)
+                owner.scroll_feedback.setText(('↑' if direction < 0 else '↓') + f' {percent} %')
+            else:
+                owner.scroll_feedback.clear()
         if owner:
             for view in owner.views:
                 if view.drop_point is not None:
@@ -274,14 +290,18 @@ class PlaylistView(QListView):
         mime.setData(MIME, json.dumps(rows).encode('utf-8'))
         drag = QDrag(self)
         drag.setMimeData(mime)
-        pixmap = QPixmap(min(520, self.viewport().width()), 28)
+        labels = [self.model().data(self.model().index(row, 0)) for row in rows[:3]]
+        if len(rows) > 3:
+            labels.append(f'+{len(rows) - 3}')
+        width = min(520, self.viewport().width())
+        pixmap = QPixmap(width, 28 * len(labels))
         pixmap.fill(QColor('#176c62'))
         painter = QPainter(pixmap)
         painter.setPen(QColor('#ffffff'))
-        label = self.model().data(self.model().index(rows[0], 0))
-        if len(rows) > 1:
-            label = f'{len(rows)} × ' + label
-        painter.drawText(pixmap.rect().adjusted(8, 0, -8, 0), Qt.AlignVCenter, label)
+        from PySide6.QtCore import QRect
+        for line, label in enumerate(labels):
+            text = painter.fontMetrics().elidedText(label, Qt.ElideRight, width - 16)
+            painter.drawText(QRect(8, line * 28, width - 16, 28), Qt.AlignVCenter, text)
         painter.end()
         drag.setPixmap(pixmap)
         self.edge_direction = 0
@@ -291,6 +311,8 @@ class PlaylistView(QListView):
             drag.exec(Qt.MoveAction)
         finally:
             self.edge_timer.stop()
+            if getattr(self, 'manager', None):
+                self.manager.scroll_feedback.clear()
             owner = getattr(self, 'manager', None)
             for view in owner.views if owner else [self]:
                 view.drop_point = None
@@ -346,18 +368,36 @@ class PlaylistManager(QWidget):
         self.to_end.clicked.connect(lambda: self.move_to_edge(True))
         bottom.addWidget(self.to_start)
         bottom.addWidget(self.to_end)
+        self.undo_button = QPushButton()
+        self.undo_button.clicked.connect(self.undo)
+        bottom.addWidget(self.undo_button)
+        self.scroll_feedback = QLabel()
+        bottom.addWidget(self.scroll_feedback)
         bottom.addStretch()
         layout.addLayout(bottom)
-        self.model.modelReset.connect(self.update_pages)
+        self.model.modelReset.connect(self.reset_pages)
         self.status = QLabel()
         layout.addWidget(self.status)
         self.space = QShortcut(QKeySequence('Space'), self)
         self.space.setContext(Qt.WidgetWithChildrenShortcut)
         self.space.activated.connect(self.preview)
+        self.undo_shortcut = QShortcut(QKeySequence('Ctrl+Z'), self)
+        self.undo_shortcut.setContext(Qt.WidgetWithChildrenShortcut)
+        self.undo_shortcut.activated.connect(self.undo)
         self.retranslate()
+        self.refresh_undo()
+
+    def undo(self):
+        if getattr(self.window, 'save_job', None) or getattr(self.window, 'duplicate_job', None):
+            return
+        self.window.undo(on_success=self.reload)
+
+    def refresh_undo(self):
+        self.undo_button.setEnabled(bool(getattr(self.window, 'undo_stack', [])) and not getattr(self.window, 'save_job', None) and not getattr(self.window, 'duplicate_job', None))
 
     def retranslate(self):
         de = self.window.lang == 'de'
+        self.undo_button.setText('Rückgängig [Strg+Z]' if de else 'Undo [Ctrl+Z]')
         self.to_start.setText('An den Anfang' if de else 'Move to beginning')
         self.to_end.setText('Ans Ende' if de else 'Move to end')
         self.back.setText('← Zurück zum PartyPicker' if de else '← Back to PartyPicker')
@@ -365,6 +405,11 @@ class PlaylistManager(QWidget):
         self.current.setText('Aktuelle Playlist übernehmen' if de else 'Use current playlist')
         self.heading.setText('PLAYLIST-MANAGER · Links beginnt die Liste · rechts geht sie weiter' if de else 'PLAYLIST MANAGER · Playlist continues from left to right')
         self.status.setText('Strg + Ziehen: markieren · Auswahl ziehen: verschieben · Leertaste: vorhören' if de else 'Ctrl + drag: select · Drag selection to reorder · Space: preview')
+
+    def reset_pages(self):
+        for view in self.views:
+            view.shown_rows = None
+        self.update_pages()
 
     def update_pages(self, *args):
         if not self.views:
@@ -381,10 +426,17 @@ class PlaylistManager(QWidget):
             first = start + column * capacity
             end = min(count, first + capacity)
             view.visible_start, view.visible_end = first, end
-            for row in range(count):
-                hide = not first <= row < end
-                if view.isRowHidden(row) != hide:
-                    view.setRowHidden(row, hide)
+            shown = set(range(first, end))
+            if view.shown_rows is None:
+                for row in range(count):
+                    view.setRowHidden(row, row not in shown)
+            else:
+                for row in view.shown_rows - shown:
+                    if row < count:
+                        view.setRowHidden(row, True)
+                for row in shown - view.shown_rows:
+                    view.setRowHidden(row, False)
+            view.shown_rows = shown
             view.verticalScrollBar().setValue(0)
 
     def move_to_edge(self, end):
@@ -396,6 +448,7 @@ class PlaylistManager(QWidget):
             self.reorder(updated)
 
     def reload(self):
+        self.refresh_undo()
         if self.metadata in self.metadata_jobs and self.metadata.isRunning():
             self.metadata.requestInterruption()
         self.model.reset_entries(self.window.selected)

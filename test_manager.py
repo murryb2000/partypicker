@@ -102,6 +102,12 @@ class DragFeedbackTests(unittest.TestCase):
             with patch('playlist_manager.time.monotonic',return_value=100): view.poll_drag_edge()
             with patch('playlist_manager.time.monotonic',return_value=101): view.poll_drag_edge()
         self.assertEqual(received[-1],4)
+        with patch('playlist_manager.QCursor.pos', return_value=edge):
+            for tick in range(2, 32):
+                with patch('playlist_manager.time.monotonic', return_value=100+tick):
+                    view.poll_drag_edge()
+        self.assertGreater(received[-1], received[0] * 2)
+        self.assertIn('259', manager.scroll_feedback.text())
         middle=view.viewport().mapToGlobal(QPoint(20,100))
         with patch('playlist_manager.QCursor.pos',return_value=middle): view.poll_drag_edge()
         self.assertEqual(view.edge_direction,0)

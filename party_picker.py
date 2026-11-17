@@ -752,6 +752,8 @@ class Window(QMainWindow):
                        self.down_button, self.remove_button, self.undo_button):
             widget.setEnabled(not busy)
         self.undo_button.setEnabled(not busy and bool(self.undo_stack))
+        if hasattr(self, "manager"):
+            self.manager.refresh_undo()
 
     def commit(self, entries, target=None, ui_change=None, on_success=None, record_undo=True):
         target = target or self.playlist
@@ -792,6 +794,8 @@ class Window(QMainWindow):
         self.apply_playlist_change(ui_change)
         self.update_source_colors()
         self.undo_button.setEnabled(bool(self.undo_stack))
+        if hasattr(self, "manager"):
+            self.manager.refresh_undo()
         self.remember_playlist()
         self.statusBar().showMessage(self.t('saved', path=self.playlist))
         if on_success:
@@ -1185,7 +1189,7 @@ class Window(QMainWindow):
         self.commit(self.selected + [path], ui_change=('append', path),
                     on_success=(lambda: self.step(1)) if advance else None)
 
-    def undo(self):
+    def undo(self, on_success=None):
         if not self.undo_stack or self.save_job or self.duplicate_job:
             return
         entries = list(self.undo_stack[-1])
@@ -1194,6 +1198,8 @@ class Window(QMainWindow):
             self.undo_button.setEnabled(bool(self.undo_stack))
             self.show_latest_pick()
             self.statusBar().showMessage(self.t('undo_done'))
+            if on_success:
+                on_success()
         self.commit(entries, ui_change=('full',), on_success=done, record_undo=False)
 
     def mark_history(self, path, status):

@@ -41,6 +41,19 @@ class PlayerStub:
 
 
 class PartyPickerTests(unittest.TestCase):
+    def test_manager_undo_restores_saved_order(self):
+        self.w.playlist = self.root / 'manager.m3u'
+        self.save([self.a, self.b])
+        self.w.manager.reload()
+        self.w.manager.reorder([self.b, self.a])
+        wait_for(lambda: self.w.pending_save is None and not self.w.jobs)
+        self.assertEqual(self.w.manager.model.entries, [self.b, self.a])
+        self.assertTrue(self.w.manager.undo_button.isEnabled())
+        self.w.manager.undo()
+        wait_for(lambda: self.w.pending_save is None and not self.w.jobs)
+        self.assertEqual(self.w.manager.model.entries, [self.a, self.b])
+        self.assertEqual(read_playlist(self.w.playlist), [self.a, self.b])
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
