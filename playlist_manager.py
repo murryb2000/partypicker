@@ -12,8 +12,8 @@ MIME = 'application/x-partypicker-rows'
 
 
 def edge_speed(seconds):
-    # Four rows/second initially; +10 percent every three seconds.
-    return 4.0 * 1.1 ** int(max(0, seconds) // 3)
+    # Four rows/second initially; +20 percent every three seconds.
+    return 4.0 * 1.2 ** int(max(0, seconds) // 3)
 
 
 def moved_entries(entries, rows, destination):
