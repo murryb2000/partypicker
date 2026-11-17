@@ -80,9 +80,13 @@ if __name__ == '__main__': unittest.main()
 class DragFeedbackTests(unittest.TestCase):
     def test_speed_steps(self):
         from playlist_manager import edge_speed
-        self.assertEqual(edge_speed(2.99), 4)
-        self.assertAlmostEqual(edge_speed(3), 4.8)
-        self.assertAlmostEqual(edge_speed(6), 5.76)
+        self.assertEqual(edge_speed(1.49), 4)
+        self.assertAlmostEqual(edge_speed(3), 16)
+        self.assertAlmostEqual(edge_speed(6), 44)
+        self.assertEqual(edge_speed(1.5), 8)
+        self.assertEqual(edge_speed(4.5), 28)
+        self.assertEqual(edge_speed(7.5), 60)
+        self.assertEqual(edge_speed(120), 60)
 
     def test_line_and_drop_use_same_boundary(self):
         from PySide6.QtCore import QPoint
@@ -107,7 +111,7 @@ class DragFeedbackTests(unittest.TestCase):
                 with patch('playlist_manager.time.monotonic', return_value=100+tick):
                     view.poll_drag_edge()
         self.assertGreater(received[-1], received[0] * 2)
-        self.assertIn('619', manager.scroll_feedback.text())
+        self.assertIn('1500', manager.scroll_feedback.text())
         middle=view.viewport().mapToGlobal(QPoint(20,100))
         with patch('playlist_manager.QCursor.pos',return_value=middle): view.poll_drag_edge()
         self.assertEqual(view.edge_direction,0)

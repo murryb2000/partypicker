@@ -12,8 +12,9 @@ MIME = 'application/x-partypicker-rows'
 
 
 def edge_speed(seconds):
-    # Four rows/second initially; +20 percent every three seconds.
-    return 4.0 * 1.2 ** int(max(0, seconds) // 3)
+    # Predictable acceleration every 1.5 seconds, capped at 60 rows/second.
+    speeds = (4.0, 8.0, 16.0, 28.0, 44.0, 60.0)
+    return speeds[min(len(speeds) - 1, int(max(0, seconds) // 1.5))]
 
 
 def moved_entries(entries, rows, destination):

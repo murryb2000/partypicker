@@ -79,7 +79,7 @@ jobs:
         if: github.ref == 'refs/heads/playlist-manager-2-beta' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.0.0-beta.7
+          tag_name: v2.0.0-beta.8
           target_commitish: ${{ github.sha }}
           name: PartyPicker 2.0 Beta
           prerelease: true
@@ -89,7 +89,7 @@ jobs:
             Playlist-Manager-Button unten rechts im linken PartyPicker-Bereich.
             Navigation zum Listenanfang und Listenende per Button.
             Undo im Manager per Button und Strg+Z. Ziehvorschau: drei Titel und +Restanzahl.
-            Grüne Einfügelinie und automatisches Scrollen: alle drei Sekunden zwanzig Prozent schneller.
+            Grüne Einfügelinie und automatisches Scrollen: alle 1,5 Sekunden 4, 8, 16, 28, 44, maximal 60 Titel/Sekunde.
             BPM wird angezeigt, wenn es in den Musikdatei-Tags vorhanden ist.
             Die Beta bitte zunächst mit einer Kopie der Playlist ausprobieren.
           files: PartyPicker-Windows.zip
