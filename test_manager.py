@@ -76,3 +76,34 @@ class ContinuousColumnsTests(unittest.TestCase):
         manager.close()
 
 if __name__ == '__main__': unittest.main()
+
+class DragFeedbackTests(unittest.TestCase):
+    def test_speed_steps(self):
+        from playlist_manager import edge_speed
+        self.assertEqual(edge_speed(2.99), 4)
+        self.assertAlmostEqual(edge_speed(3), 4.4)
+        self.assertAlmostEqual(edge_speed(6), 4.84)
+
+    def test_line_and_drop_use_same_boundary(self):
+        from PySide6.QtCore import QPoint
+        window = SimpleNamespace(lang='de', user_volume=.5, show_picker=lambda: None)
+        manager = PlaylistManager(window)
+        manager.resize(1000,700)
+        manager.model.reset_entries([Path(f'/track-{i}.mp3') for i in range(80)])
+        manager.show(); app.processEvents(); manager.update_pages()
+        view = manager.views[0]
+        rect = view.visualRect(manager.model.index(2,0))
+        self.assertEqual(view.insertion_at(QPoint(rect.center().x(),rect.top()+2))[0],2)
+        self.assertEqual(view.insertion_at(QPoint(rect.center().x(),rect.bottom()-2))[0],3)
+        received=[]
+        view.scroll_requested.connect(received.append)
+        edge = view.viewport().mapToGlobal(QPoint(20, view.viewport().height()-1))
+        with patch('playlist_manager.QCursor.pos', return_value=edge):
+            with patch('playlist_manager.time.monotonic',return_value=100): view.poll_drag_edge()
+            with patch('playlist_manager.time.monotonic',return_value=101): view.poll_drag_edge()
+        self.assertEqual(received[-1],4)
+        middle=view.viewport().mapToGlobal(QPoint(20,100))
+        with patch('playlist_manager.QCursor.pos',return_value=middle): view.poll_drag_edge()
+        self.assertEqual(view.edge_direction,0)
+        self.assertEqual(view.edge_remainder,0)
+        manager.stop(); manager.close()

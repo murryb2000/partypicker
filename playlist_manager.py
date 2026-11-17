@@ -1,13 +1,19 @@
 import json
+import time
 from pathlib import Path
 from PySide6.QtCore import Qt, QAbstractListModel, QModelIndex, QMimeData, QItemSelectionModel, QThread, Signal, QUrl, QSize, QTimer
-from PySide6.QtGui import QDrag, QKeySequence, QShortcut, QPixmap, QPainter, QColor
+from PySide6.QtGui import QDrag, QKeySequence, QShortcut, QPixmap, QPainter, QColor, QPen, QCursor
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
                                QListView, QAbstractItemView, QFileDialog, QScrollBar)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from tinytag import TinyTag
 
 MIME = 'application/x-partypicker-rows'
+
+
+def edge_speed(seconds):
+    # Four rows/second initially; +10 percent every three seconds.
+    return 4.0 * 1.1 ** min(100, int(max(0, seconds) // 3))
 
 
 def moved_entries(entries, rows, destination):
@@ -119,10 +125,10 @@ class PlaylistView(QListView):
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
-        self.setDropIndicatorShown(True)
+        self.setDropIndicatorShown(False)
         self.setDragDropMode(QAbstractItemView.DragDrop)
         self.setDefaultDropAction(Qt.MoveAction)
-        self.setAutoScroll(True)
+        self.setAutoScroll(False)
         self.setAutoScrollMargin(50)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -132,8 +138,11 @@ class PlaylistView(QListView):
         self.visible_start, self.visible_end = 0, 0
         self.edge_direction = 0
         self.edge_timer = QTimer(self)
-        self.edge_timer.setInterval(90)
-        self.edge_timer.timeout.connect(lambda: self.scroll_requested.emit(self.edge_direction))
+        self.edge_timer.setInterval(30)
+        self.edge_timer.timeout.connect(self.poll_drag_edge)
+        self.edge_since = self.edge_last = 0.0
+        self.edge_remainder = 0.0
+        self.drop_point = None
         self.sweeping = False
         self.swept = set()
         self.sweep_last = None
@@ -153,27 +162,71 @@ class PlaylistView(QListView):
             event.setDropAction(Qt.MoveAction)
             event.accept()
 
-    def dragMoveEvent(self, event):
-        super().dragMoveEvent(event)
-        y = event.position().y()
-        self.edge_direction = -1 if y < 35 else (1 if y > self.viewport().height() - 35 else 0)
-        if self.edge_direction:
-            self.edge_timer.start()
+    def insertion_at(self, point):
+        idx = self.indexAt(point)
+        if idx.isValid():
+            rect = self.visualRect(idx)
+            after = point.y() > rect.center().y()
+            return idx.row() + int(after), rect.bottom() + 1 if after else rect.top()
+        return self.visible_end, min(self.viewport().height() - 2, max(1, (self.visible_end - self.visible_start) * 28))
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self.drop_point is not None:
+            _, y = self.insertion_at(self.drop_point)
+            painter = QPainter(self.viewport())
+            painter.setPen(QPen(QColor('#32e69b'), 2))
+            painter.drawLine(3, y, self.viewport().width() - 4, y)
+            painter.end()
+
+    def poll_drag_edge(self):
+        cursor = QCursor.pos()
+        rect = self.viewport().rect()
+        point = self.viewport().mapFromGlobal(cursor)
+        owner = getattr(self, 'manager', None)
+        if owner:
+            left = owner.mapToGlobal(owner.rect().topLeft()).x()
+            right = owner.mapToGlobal(owner.rect().topRight()).x()
+            in_width = left <= cursor.x() <= right
         else:
-            self.edge_timer.stop()
+            in_width = 0 <= point.x() <= rect.width()
+        direction = (-1 if point.y() < 35 else 1 if point.y() >= rect.height() - 35 else 0) if in_width else 0
+        now = time.monotonic()
+        if direction != self.edge_direction:
+            self.edge_direction = direction
+            self.edge_since = self.edge_last = now
+            self.edge_remainder = 0.0
+        if direction:
+            self.edge_remainder += (now - self.edge_last) * edge_speed(now - self.edge_since)
+            rows = int(self.edge_remainder)
+            self.edge_remainder -= rows
+            if rows:
+                self.scroll_requested.emit(direction * rows)
+        self.edge_last = now
+        if owner:
+            for view in owner.views:
+                if view.drop_point is not None:
+                    view.drop_point = view.viewport().mapFromGlobal(cursor)
+                    view.viewport().update()
+
+    def dragMoveEvent(self, event):
+        if not event.mimeData().hasFormat(MIME):
+            event.ignore()
+            return
+        self.drop_point = event.position().toPoint()
+        self.viewport().update()
         event.setDropAction(Qt.MoveAction)
         event.accept()
 
     def dragLeaveEvent(self, event):
-        self.edge_timer.stop()
-        super().dragLeaveEvent(event)
+        self.drop_point = None
+        self.viewport().update()
+        event.accept()
 
     def dropEvent(self, event):
-        self.edge_timer.stop()
-        idx = self.indexAt(event.position().toPoint())
-        destination = self.visible_end
-        if idx.isValid():
-            destination = idx.row() + (event.position().y() > self.visualRect(idx).center().y())
+        destination, _ = self.insertion_at(event.position().toPoint())
+        self.drop_point = None
+        self.viewport().update()
         if self.model().dropMimeData(event.mimeData(), Qt.MoveAction, destination, 0, QModelIndex()):
             event.setDropAction(Qt.MoveAction)
             event.accept()
@@ -231,8 +284,17 @@ class PlaylistView(QListView):
         painter.drawText(pixmap.rect().adjusted(8, 0, -8, 0), Qt.AlignVCenter, label)
         painter.end()
         drag.setPixmap(pixmap)
-        drag.exec(Qt.MoveAction)
-        self.edge_timer.stop()
+        self.edge_direction = 0
+        self.edge_last = time.monotonic()
+        self.edge_timer.start()
+        try:
+            drag.exec(Qt.MoveAction)
+        finally:
+            self.edge_timer.stop()
+            owner = getattr(self, 'manager', None)
+            for view in owner.views if owner else [self]:
+                view.drop_point = None
+                view.viewport().update()
 
 
 class PlaylistManager(QWidget):
@@ -269,6 +331,7 @@ class PlaylistManager(QWidget):
         self.views = [PlaylistView(), PlaylistView()]
         self.selection = QItemSelectionModel(self.model, self)
         for view in self.views:
+            view.manager = self
             view.setModel(self.model)
             view.setSelectionModel(self.selection)
             view.scroll_requested.connect(lambda delta: self.scroll.setValue(self.scroll.value() + delta))
