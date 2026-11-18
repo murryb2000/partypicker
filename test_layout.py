@@ -34,7 +34,7 @@ class CompactLayoutTests(unittest.TestCase):
         self.assertEqual([label.height() for label in (self.w.title, self.w.file_label, self.w.location)], heights)
         self.assertLessEqual(self.w.width(), 1128, sorted(
             [(w.metaObject().className(), getattr(w, 'text', lambda: '')()[:80],
-              w.minimumSizeHint().width(), w.minimumWidth(), w.width())
+              w.minimumSizeHint().width(), w.minimumWidth(), w.width(), w.font().pixelSize(), w.fontMetrics().height(), w.fontMetrics().horizontalAdvance('Grau: noch nicht gehört'))
              for w in self.w.findChildren(QWidget) if w.minimumSizeHint().width() > 600],
             key=lambda row: row[2], reverse=True))
         self.assertLessEqual(self.w.height(), 680)
@@ -71,7 +71,7 @@ class CompactLayoutTests(unittest.TestCase):
             self.assertEqual(self.w.wave.height(), 128)
             self.assertLessEqual(self.w.width(), 1128, sorted(
             [(w.metaObject().className(), getattr(w, 'text', lambda: '')()[:80],
-              w.minimumSizeHint().width(), w.minimumWidth(), w.width())
+              w.minimumSizeHint().width(), w.minimumWidth(), w.width(), w.font().pixelSize(), w.fontMetrics().height(), w.fontMetrics().horizontalAdvance('Grau: noch nicht gehört'))
              for w in self.w.findChildren(QWidget) if w.minimumSizeHint().width() > 600],
             key=lambda row: row[2], reverse=True))
             self.assertLessEqual(self.w.height(), 752)
@@ -105,7 +105,7 @@ with tempfile.TemporaryDirectory() as tmp:
         window.location.setText('Playlist: C:/' + 'Long Folder/' * 100 + 'Party.m3u')
         window.resize(1128, 680); window.show(); app.processEvents()
         assert window.devicePixelRatioF() >= 1.99
-        assert window.width() <= 1128 and window.height() <= 680
+        assert window.width() <= 1128 and window.height() <= 680, (window.size(), window.font().toString(), window.legend.font().toString(), window.legend.fontMetrics().height(), window.legend.fontMetrics().horizontalAdvance('Grau: noch nicht gehört'), window.screen().logicalDotsPerInch(), window.devicePixelRatioF())
         for widget in (window.wave, window.next_button, window.add_button):
             assert widget.visibleRegion().boundingRect().size() == widget.size()
         assert window.wave.height() == 128
