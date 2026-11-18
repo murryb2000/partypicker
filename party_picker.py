@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from playlist_manager import PlaylistManager
 from animations import RowMotion, ColorFadeDelegate, WaveCrossfade
+from background_jobs import ReadJob
 from core import (natural_key, path_key, read_playlist, save_playlist,
                   save_text_playlist, text_entry, track_identity, preview_position, normalization_gain)
 
@@ -171,7 +172,7 @@ def resource_path(name):
 APP_VERSION = resource_path('VERSION').read_text(encoding='utf-8').strip()
 
 
-class Scan(QThread):
+class Scan(ReadJob):
     result = Signal(object, str, int)
     def __init__(self, root, recursive, parent):
         super().__init__(parent)
@@ -197,11 +198,11 @@ class Scan(QThread):
                 if not self.recursive:
                     dirs.clear()
             if not root_seen and errors:
-                self.result.emit([], str(errors[0]), 0)
+                self.publish('result', [], str(errors[0]), 0)
                 return
-            self.result.emit(sorted(files, key=natural_key), '', len(errors))
+            self.publish('result', sorted(files, key=natural_key), '', len(errors))
         except Exception as exc:
-            self.result.emit([], str(exc), 0)
+            self.publish('result', [], str(exc), 0)
 
 
 class Save(QThread):
@@ -230,7 +231,7 @@ class Save(QThread):
             self.result.emit(self.target, self.entries, updates, str(exc))
 
 
-class CheckFiles(QThread):
+class CheckFiles(ReadJob):
     result = Signal(object, object)
     def __init__(self, entries, parent):
         super().__init__(parent)
@@ -242,11 +243,11 @@ class CheckFiles(QThread):
             if self.isInterruptionRequested():
                 return
             states.append(path.is_file())
-        self.result.emit(self.entries, states)
+        self.publish('result', self.entries, states)
 
 
 
-class Probe(QThread):
+class Probe(ReadJob):
     result = Signal(int, object, object, str)
     def __init__(self, token, path, parent):
         super().__init__(parent)
@@ -256,12 +257,12 @@ class Probe(QThread):
             if not self.path.is_file():
                 raise FileNotFoundError(str(self.path))
             identity = track_identity(self.path)
-            self.result.emit(self.token, self.path, identity, '')
+            self.publish('result', self.token, self.path, identity, '')
         except Exception as exc:
-            self.result.emit(self.token, self.path, None, str(exc))
+            self.publish('result', self.token, self.path, None, str(exc))
 
 
-class Duplicates(QThread):
+class Duplicates(ReadJob):
     result = Signal(object, object, object, bool, object)
     def __init__(self, path, entries, cache, advance, parent):
         super().__init__(parent)
@@ -278,10 +279,10 @@ class Duplicates(QThread):
         identity = self.cache[path_key(self.path)]
         if identity:
             duplicate = next((p for p in self.entries if self.cache[path_key(p)] == identity), None)
-        self.result.emit(self.path, self.entries, duplicate, self.advance, updates)
+        self.publish('result', self.path, self.entries, duplicate, self.advance, updates)
 
 
-class Analyze(QThread):
+class Analyze(ReadJob):
     result = Signal(int, str, object, str, float, str)
     def __init__(self, token, path, parent):
         super().__init__(parent)
@@ -307,9 +308,9 @@ class Analyze(QThread):
             except Exception:
                 pass
             rms = (square_sum / samples) ** .5 if samples else 0
-            self.result.emit(self.token, str(self.path), peaks, title, normalization_gain(rms, peak), '')
+            self.publish('result', self.token, str(self.path), peaks, title, normalization_gain(rms, peak), '')
         except Exception as exc:
-            self.result.emit(self.token, str(self.path), [], self.path.stem, 1.0, str(exc))
+            self.publish('result', self.token, str(self.path), [], self.path.stem, 1.0, str(exc))
 
 
 class Waveform(QWidget):
@@ -356,6 +357,10 @@ class Window(QMainWindow):
         self.selected_keys, self.text_cache, self.availability = set(), {}, {}
         self.index, self.playlist, self.analyzer = -1, None, None
         self.save_job, self.pending_save = None, None
+        self._closing = False
+        self.close_poll = QTimer(self)
+        self.close_poll.setInterval(50)
+        self.close_poll.timeout.connect(self.finish_close)
         self.audio = QAudioOutput(self)
         self.user_volume, self.track_gain = .65, 1.0
         self.audio.setVolume(self.user_volume)
@@ -530,6 +535,8 @@ class Window(QMainWindow):
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         splitter = QSplitter(Qt.Vertical)
         self.sources, self.picks = QListWidget(), QListWidget()
+        self.sources.setUniformItemSizes(True)
+        self.picks.setUniformItemSizes(True)
         self.source_fade = ColorFadeDelegate(self.sources)
         self.sources.setItemDelegate(self.source_fade)
         self.pick_motion = RowMotion(self.picks, [self.picks])
@@ -771,6 +778,8 @@ class Window(QMainWindow):
             self.manager.refresh_undo()
 
     def commit(self, entries, target=None, ui_change=None, on_success=None, record_undo=True):
+        if self._closing:
+            return False
         target = target or self.playlist
         if target is None:
             return False
@@ -797,6 +806,11 @@ class Window(QMainWindow):
         if hasattr(self, 'manager'):
             self.manager.setEnabled(True)
         if error:
+            if self._closing:
+                self._closing = False
+                self.close_poll.stop()
+                self.setEnabled(True)
+                self.folder_button.setEnabled(True)
             if hasattr(self, 'manager') and self.manager.model.projection is not None:
                 self.manager.motion.finish()
                 self.manager.reload()
@@ -809,6 +823,9 @@ class Window(QMainWindow):
             self.undo_stack = self.undo_stack[-20:]
         self.playlist, self.selected = Path(target), list(entries)
         self.selected_keys = {path_key(path) for path in self.selected}
+        if self._closing:
+            self.remember_playlist()
+            return
         self.apply_playlist_change(ui_change)
         self.update_source_colors()
         self.undo_button.setEnabled(bool(self.undo_stack))
@@ -927,6 +944,8 @@ class Window(QMainWindow):
         self.launch(checker)
 
     def files_checked(self, entries, states):
+        if self._closing:
+            return
         if [path_key(p) for p in entries] != [path_key(p) for p in self.selected]:
             return
         for row, (path, available) in enumerate(zip(entries, states)):
@@ -1009,6 +1028,8 @@ class Window(QMainWindow):
         self.launch(scan)
 
     def scanned(self, files, error, skipped, last_track=''):
+        if self._closing:
+            return
         self.folder_button.setEnabled(True)
         if error:
             self.error(error)
@@ -1019,11 +1040,16 @@ class Window(QMainWindow):
             return
         self.tracks = files
         self.source_rows = {path_key(p): i for i, p in enumerate(files)}
-        self.sources.clear()
-        for p in files:
-            self.sources.addItem(p.parent.name + ' / ' + p.name)
-            self.sources.item(self.sources.count()-1).setToolTip(str(p))
-        self.update_source_colors()
+        self.sources.setUpdatesEnabled(False)
+        self.source_fade.clear()
+        try:
+            self.sources.clear()
+            self.sources.addItems([p.parent.name + ' / ' + p.name for p in files])
+            for row, path in enumerate(files):
+                self.sources.item(row).setToolTip(str(path))
+            self.update_source_colors(animate=False)
+        finally:
+            self.sources.setUpdatesEnabled(True)
         self.refresh_count()
         if skipped:
             self.statusBar().showMessage(self.t('scan_skipped', count=skipped))
@@ -1090,6 +1116,8 @@ class Window(QMainWindow):
 
     @Slot(int, object, object, str)
     def probed(self, token, path, identity, error):
+        if self._closing:
+            return
         if token != self.play_token:
             return
         if error:
@@ -1111,6 +1139,8 @@ class Window(QMainWindow):
 
     @Slot(int, str, object, str, float, str)
     def analyzed(self, token, path, peaks, title, gain, error):
+        if self._closing:
+            return
         if token != self.play_token or str(self.current_path()) != path:
             return
         self.title.setText(title)
@@ -1250,6 +1280,8 @@ class Window(QMainWindow):
 
     @Slot(object, object, object, bool, object)
     def duplicates_checked(self, path, entries, duplicate, advance, updates):
+        if self._closing:
+            return
         self.duplicate_job = None
         self.identity_cache.update(updates)
         self.set_save_busy(self.save_job is not None)
@@ -1297,7 +1329,8 @@ class Window(QMainWindow):
             self.settings.setValue('track_history', json.dumps(self.history))
             self.history_dirty = False
 
-    def update_source_colors(self, only_key=None):
+    def update_source_colors(self, only_key=None, animate=True):
+        visible = self.source_fade.visible_rows() if animate else set()
         rows = [self.source_rows[only_key]] if only_key in self.source_rows else ([] if only_key else range(len(self.tracks)))
         for row in rows:
             key = path_key(self.tracks[row])
@@ -1305,7 +1338,7 @@ class Window(QMainWindow):
             if item:
                 color = '#36dab5' if key in self.selected_keys else (
                     '#ffb454' if self.history.get(key) in ('heard', 'skipped') else '#8c97a5')
-                self.source_fade.change(item, color)
+                self.source_fade.change(item, color, animate=row in visible)
 
     def reset_history(self):
         dialog = QMessageBox(self)
@@ -1389,24 +1422,42 @@ class Window(QMainWindow):
                 token = self.play_token
                 QTimer.singleShot(0, lambda: self.play_track(self.index + 1) if token == self.play_token else None)
 
+    def finish_close(self):
+        if self._closing and self.pending_save is None and not any(
+                isinstance(job, QThread) and job.isRunning() for job in self.jobs):
+            self.close_poll.stop()
+            self.close()
+
     def closeEvent(self, event):
+        if self._closing:
+            if self.pending_save is not None or any(isinstance(job, QThread) and job.isRunning() for job in self.jobs):
+                event.ignore()
+            else:
+                event.accept()
+            return
+        self._closing = True
         self.source_fade.clear()
         self.pick_motion.finish()
         self.wave_fade.finish()
         self.preview_timer.stop()
-        if hasattr(self, "manager"):
+        if hasattr(self, 'manager'):
             self.manager.stop()
         self.flush_history()
         self.settings.sync()
         self.play_token += 1
         self.player.stop()
-        # Release the backend file handle as well as stopping playback (Windows).
         if isinstance(self.player, QMediaPlayer):
             self.player.setSource(QUrl())
         for job in list(self.jobs):
-            job.requestInterruption()
-        for job in list(self.jobs):
-            job.wait()
+            if isinstance(job, ReadJob):
+                job.requestInterruption()
+        if self.pending_save is not None or any(isinstance(job, QThread) and job.isRunning() for job in self.jobs):
+            self.setEnabled(False)
+            self.statusBar().showMessage('Playlist wird noch gespeichert …' if self.lang == 'de'
+                                         else 'Finishing playlist save …')
+            self.close_poll.start()
+            event.ignore()
+            return
         event.accept()
 
 

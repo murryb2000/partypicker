@@ -1,13 +1,14 @@
 import json
 import time
 from pathlib import Path
-from PySide6.QtCore import Qt, QAbstractListModel, QModelIndex, QMimeData, QItemSelectionModel, QThread, Signal, QUrl, QSize, QTimer
+from PySide6.QtCore import Qt, QAbstractListModel, QModelIndex, QMimeData, QItemSelectionModel, Signal, Slot, QUrl, QSize, QTimer
 from PySide6.QtGui import QDrag, QKeySequence, QShortcut, QPixmap, QPainter, QColor, QPen, QCursor, QGuiApplication
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
                                QListView, QAbstractItemView, QFileDialog, QScrollBar, QStyledItemDelegate)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from tinytag import TinyTag
 from animations import RowMotion
+from background_jobs import ReadJob
 
 MIME = 'application/x-partypicker-rows'
 
@@ -40,7 +41,7 @@ def moved_entries(entries, rows, destination):
     return remaining[:target] + chosen + remaining[target:]
 
 
-class Metadata(QThread):
+class Metadata(ReadJob):
     found = Signal(str, str)
 
     def __init__(self, entries, parent=None):
@@ -64,8 +65,8 @@ class Metadata(QThread):
                 if bpm:
                     label += f'  ·  {bpm} BPM'
             except Exception:
-                pass
-            self.found.emit(str(path), label)
+                continue  # Keep filename fallback; retry tags on the next reload.
+            self.publish('found', str(path), label)
 
 
 class PlaylistModel(QAbstractListModel):
@@ -75,6 +76,8 @@ class PlaylistModel(QAbstractListModel):
         super().__init__(parent)
         self.entries = []
         self.labels = {}
+        self.path_rows = {}
+        self.display_rows = {}
         self.projection = None
         self.drag_rows = None
         self.drag_remaining = []
@@ -84,6 +87,10 @@ class PlaylistModel(QAbstractListModel):
     def reset_entries(self, entries):
         self.beginResetModel()
         self.entries = list(entries)
+        self.path_rows = {}
+        for row, path in enumerate(self.entries):
+            self.path_rows.setdefault(str(path), []).append(row)
+        self.display_rows = {row: row for row in range(len(self.entries))}
         self.projection = None
         self.drag_rows = None
         self.endResetModel()
@@ -154,6 +161,7 @@ class PlaylistModel(QAbstractListModel):
     def set_projection(self, projection):
         self.beginResetModel()
         self.projection = projection
+        self.display_rows = {source: row for row, source in enumerate(projection) if source is not None} if projection is not None else {row: row for row in range(len(self.entries))}
         self.endResetModel()
 
     def begin_drag(self, rows):
@@ -189,9 +197,9 @@ class PlaylistModel(QAbstractListModel):
 
     def set_label(self, path, label):
         self.labels[path] = label
-        for row in range(self.rowCount()):
-            source = self.source_row(row)
-            if source is not None and str(self.entries[source]) == path:
+        for source in self.path_rows.get(path, []):
+            row = self.display_rows.get(source)
+            if row is not None:
                 index = self.index(row, 0)
                 self.dataChanged.emit(index, index, [Qt.DisplayRole])
 
@@ -418,6 +426,8 @@ class PlaylistManager(QWidget):
         self.model.reordered.connect(self.reorder)
         self.metadata = None
         self.metadata_jobs = []
+        self.pending_metadata = []
+        self.metadata_active = False
         self.audio = QAudioOutput(self)
         self.player = QMediaPlayer(self)
         self.player.setAudioOutput(self.audio)
@@ -594,17 +604,40 @@ class PlaylistManager(QWidget):
             return
         self.drag_generation += 1
         self.refresh_undo()
-        if self.metadata in self.metadata_jobs and self.metadata.isRunning():
-            self.metadata.requestInterruption()
+        for job in self.metadata_jobs:
+            job.requestInterruption()
+        self.metadata = None
         self.model.reset_entries(self.window.selected)
         self.audio.setVolume(self.window.user_volume)
-        self.metadata = Metadata(self.window.selected, self)
-        self.metadata.found.connect(self.model.set_label)
-        job = self.metadata
+        self.pending_metadata = [p for p in self.window.selected if str(p) not in self.model.labels]
+        self.metadata_active = True
+        self.start_metadata()
+
+    def start_metadata(self):
+        if not self.metadata_active or not self.pending_metadata or len(self.metadata_jobs) >= 2:
+            return
+        job = Metadata(self.pending_metadata, self)
+        self.pending_metadata = []
+        self.metadata = job
         self.metadata_jobs.append(job)
-        job.finished.connect(lambda: self.metadata_jobs.remove(job) if job in self.metadata_jobs else None)
-        job.finished.connect(job.deleteLater)
+        job.found.connect(self.metadata_found)
+        job.finished.connect(self.metadata_finished)
         job.start()
+
+    @Slot(str, str)
+    def metadata_found(self, path, label):
+        if self.metadata_active and self.sender() is self.metadata:
+            self.model.set_label(path, label)
+
+    @Slot()
+    def metadata_finished(self):
+        job = self.sender()
+        if job is self.metadata:
+            self.metadata = None
+        if job in self.metadata_jobs:
+            self.metadata_jobs.remove(job)
+        job.deleteLater()
+        self.start_metadata()
 
     def open_file(self):
         if self.model.drag_rows is not None:
@@ -644,7 +677,8 @@ class PlaylistManager(QWidget):
             self.model.cancel_drag()
         self.player.stop()
         self.player.setSource(QUrl())
+        self.metadata_active = False
+        self.metadata = None
+        self.pending_metadata = []
         for job in list(self.metadata_jobs):
             job.requestInterruption()
-        for job in list(self.metadata_jobs):
-            job.wait()

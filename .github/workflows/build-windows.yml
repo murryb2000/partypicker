@@ -33,7 +33,7 @@ jobs:
       - name: Regressionstests
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m unittest -v test_party_picker test_manager test_visuals
+        run: python -m unittest -v test_party_picker test_manager test_visuals test_responsiveness
 
       - name: PartyPicker.exe bauen
         run: >-

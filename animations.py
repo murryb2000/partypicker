@@ -151,15 +151,30 @@ class ColorFadeDelegate(QStyledItemDelegate):
         color = index.data(Qt.ForegroundRole)
         return color.color() if color else self.view.palette().color(QPalette.Text)
 
-    def change(self, item, target):
+    def visible_rows(self):
+        if not self.view.isVisible():
+            return set()
+        first = self.view.indexAt(QPoint(4, 4)).row()
+        if first < 0:
+            return set()
+        last = self.view.indexAt(QPoint(4, max(0, self.view.viewport().height() - 4))).row()
+        if last < first:
+            last = self.view.model().rowCount() - 1
+        return set(range(first, last + 1))
+
+    def change(self, item, target, animate=True):
         index = self.view.indexFromItem(item)
-        old = self.color_at(index)
+        key = QPersistentModelIndex(index)
         target = QColor(target)
-        item.setForeground(target)  # Public/model state is current immediately.
-        if old == target or not self.view.isVisible() or not self.view.visualRect(index).intersects(self.view.viewport().rect()):
-            self.transitions.pop(QPersistentModelIndex(index), None)
+        current = index.data(Qt.ForegroundRole)
+        if current is not None and current.color() == target:
+            return  # Don't restart an ongoing transition to the same target.
+        old = self.color_at(index) if animate else target
+        item.setForeground(target)
+        if not animate or old == target or not self.view.isVisible():
+            self.transitions.pop(key, None)
             return
-        self.transitions[QPersistentModelIndex(index)] = (old, target, time.monotonic())
+        self.transitions[key] = (old, target, time.monotonic())
         self.timer.start()
         self.view.viewport().update()
 

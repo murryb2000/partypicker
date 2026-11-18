@@ -1,10 +1,9 @@
-# PartyPicker 2.1.0
+# PartyPicker 2.1.1
 
-- Playlist-Manager: animiertes Aufnehmen und Verschieben von Titeln. Die ursprünglichen Zeilen werden leer, die Liste gleitet zusammen, und am Einfügepunkt öffnet sich Platz.
-- Beim Loslassen blenden die eingefügten Titel ein. Abbrechen stellt die ursprüngliche Reihenfolge und Auswahl wieder her.
-- Die Ziehvorschau ändert die Playlist-Datei nicht. Gespeichert wird erst die endgültige Reihenfolge beim Ablegen. Fehler beim Speichern stellen auch die Ansicht zurück.
-- PartyPicker: sanfte Übergänge zwischen den Statusfarben, Ein-/Ausblenden der Playlist-Titel und Überblenden der Waveform beim Titelwechsel.
-- Die Animationen blockieren weder Wiedergabe noch Speicherung; schnelle Änderungen können laufende Übergänge ersetzen.
-- Bildschirmrand-Scrollen, zehn Pixel Stoppabstand, Rückgängig und der korrigierte Vorhör-Startpunkt aus 2.0 bleiben erhalten.
+- Behoben: Große Musikordner konnten beim Aufbau und Einfärben der Titelliste die Oberfläche lange blockieren. Der erste Listenaufbau erfolgt jetzt gesammelt; Farbüberblendungen gelten für sichtbare Zustandsänderungen.
+- Zurückwechseln aus dem Playlist-Manager und Schließen warten nicht mehr auf blockierte Datei-Lesezugriffe, etwa auf einem NAS.
+- Abgebrochene oder verspätete Leseergebnisse werden ignoriert. Metadaten werden gezielt aktualisiert und bereits gelesene Titel zwischengespeichert.
+- Laufende Speichervorgänge werden vor dem Beenden abgeschlossen, ohne die Ereignisverarbeitung der Oberfläche zu blockieren. Bei einem Speicherfehler bleibt das Fenster zur Korrektur geöffnet.
+- Zusätzliche Prüfungen mit 6.000 Titeln, blockierten Metadaten, Beenden des Prozesses und verzögertem beziehungsweise fehlgeschlagenem Speichern.
 
 ZIP vollständig entpacken und PartyPicker.exe starten. Die EXE ist weiterhin nicht digital signiert.

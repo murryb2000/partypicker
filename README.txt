@@ -1,5 +1,5 @@
 PARTYPICKER / Der Playlist-Generator
-by MurryB · Version 2.1.0
+by MurryB · Version 2.1.1
 ====================================
 
 KURZBESCHREIBUNG
@@ -179,3 +179,7 @@ Korrektur in 2.0.0: „Vorhören ab“ wartet auf das Laden und bestätigt den t
 ANIMATIONEN IN VERSION 2.1.0
 Beim Ziehen im Manager werden die ausgewählten Zeilen ausgeblendet und die übrigen Titel gleiten zusammen. Am anvisierten Einfügepunkt öffnet sich eine Vorschau-Lücke. Beim Ablegen blenden die Titel dort ein; erst dann wird gespeichert. Abbrechen stellt Reihenfolge und Auswahl wieder her. Ein Speicherfehler stellt auch die Vorschau zurück.
 In PartyPicker überblenden die Statusfarben, Titel blenden beim Aufnehmen/Entfernen ein oder aus, und die Waveform überblendet beim Titelwechsel. Die kurzen Übergänge verzögern weder die tatsächliche Listenänderung noch die Wiedergabe.
+
+KORREKTUREN IN VERSION 2.1.1
+Große Musikordner werden gesammelt aufgebaut und eingefärbt. Nur sichtbare spätere Farbwechsel werden animiert. Navigation und Schließen warten nicht auf blockierte Lesezugriffe. Bereits gelesene Metadaten werden zwischengespeichert.
+Falls beim Schließen noch eine Playlist gespeichert wird, bleibt die Oberfläche während des Abschlusses ansprechbar. Bei einem Speicherfehler bleibt das Fenster geöffnet und zeigt den Fehler an.

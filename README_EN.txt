@@ -1,5 +1,5 @@
 PARTYPICKER / The Playlist Generator
-by MurryB · Version 2.1.0
+by MurryB · Version 2.1.1
 ====================================
 
 OVERVIEW
@@ -159,3 +159,7 @@ Fixed in 2.0.0: Preview from waits for loading and confirms the actual start pos
 ANIMATIONS IN VERSION 2.1.0
 Dragging in the manager fades the selected rows out and slides the remaining tracks together. A preview gap opens at the intended insertion point. Dropping fades the tracks in and saves the final order. Cancelling restores the original order and selection. A failed save also restores the view.
 In PartyPicker, status colours transition smoothly, playlist tracks fade in/out on add/remove, and the waveform crossfades on track changes. Short transitions do not delay actual list changes or playback.
+
+FIXES IN VERSION 2.1.1
+Large music folders are populated and coloured in a batch. Only visible subsequent status changes are animated. Navigation and closing do not wait for blocked file reads. Previously read metadata is cached.
+If a playlist save is still running when closing, the interface remains responsive until it finishes. A save failure keeps the window open and displays the error.
