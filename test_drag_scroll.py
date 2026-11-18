@@ -111,6 +111,12 @@ samples = []
 view.scroll_requested.connect(lambda delta: samples.append((phase['name'], delta, time.monotonic())))
 errors = []
 stop_at = []
+trace = []
+original_tick = view.edge_heartbeat.callback
+def tick():
+    original_tick()
+    trace.append((phase['name'], repr(edge_position()), view.edge_direction, manager.scroll.maximum()))
+view.edge_heartbeat.callback = tick
 def controller():
     try:
         time.sleep(.4)
@@ -135,14 +141,17 @@ def controller():
 user.mouse_event(0x0002, 0, 0, 0, 0)
 thread = threading.Thread(target=controller, daemon=True)
 thread.start()
+held = user.GetAsyncKeyState(1)
+started = time.monotonic()
 try:
     view.startDrag(Qt.MoveAction)
+    elapsed = time.monotonic()-started
 finally:
     user.mouse_event(0x0004, 0, 0, 0, 0)
     thread.join(timeout=8)
     user.SetCursorPos(original.x, original.y)
 assert not thread.is_alive() and not errors, errors
-assert sum(delta for name, delta, _ in samples if name == 'bottom') >= 8, samples
+assert sum(delta for name, delta, _ in samples if name == 'bottom') >= 8, (samples, elapsed, held, trace[:4], trace[-4:])
 assert any(name == 'nine' and delta > 0 for name, delta, _ in samples), samples
 assert not any(name == 'ten' and t > stop_at[0]+.1 for name, delta, t in samples), samples
 assert any(name == 'top' and delta < 0 for name, delta, _ in samples), samples
