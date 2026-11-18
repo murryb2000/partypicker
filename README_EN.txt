@@ -1,5 +1,5 @@
 PARTYPICKER / The Playlist Generator
-by MurryB · Version 2.0.1
+by MurryB · Version 2.1.0
 ====================================
 
 OVERVIEW
@@ -155,3 +155,7 @@ Use Ctrl-click or Ctrl with the left mouse button to select tracks, then drag th
 Move to beginning/end changes track order. Go to beginning/end only moves the view. Undo or Ctrl+Z restores a previous edit. Every edit is saved immediately. Space toggles preview playback for one selected track. BPM is read from existing file tags; there is no automatic BPM analysis.
 
 Fixed in 2.0.0: Preview from waits for loading and confirms the actual start position. Audio is briefly muted during seeking. Short-track handling is preserved.
+
+ANIMATIONS IN VERSION 2.1.0
+Dragging in the manager fades the selected rows out and slides the remaining tracks together. A preview gap opens at the intended insertion point. Dropping fades the tracks in and saves the final order. Cancelling restores the original order and selection. A failed save also restores the view.
+In PartyPicker, status colours transition smoothly, playlist tracks fade in/out on add/remove, and the waveform crossfades on track changes. Short transitions do not delay actual list changes or playback.

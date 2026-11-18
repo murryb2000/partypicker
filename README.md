@@ -2,6 +2,15 @@
 
 Lokale Desktop-App zum Durchhören von FLAC- und MP3-Sammlungen und Zusammenstellen einer Party-Playlist. Python mit PySide6 ermöglicht direkte Dateizugriffe und Speichern ohne Browser-Berechtigungsdialoge. Wiedergabe über Qt Multimedia; Waveform aus den echten Audiodaten über SoundFile. TinyTag liest Artist-, Titel- und vorhandene BPM-Metadaten. Keine Musik-Uploads.
 
+## Neu in Version 2.1.0
+
+- Playlist-Manager: animiertes Aufnehmen und Verschieben von Titeln. Die ursprünglichen Zeilen werden leer, die Liste gleitet zusammen, und am Einfügepunkt öffnet sich Platz.
+- Beim Loslassen blenden die eingefügten Titel ein. Abbrechen stellt die ursprüngliche Reihenfolge und Auswahl wieder her.
+- Die Ziehvorschau ändert die Playlist-Datei nicht. Gespeichert wird erst die endgültige Reihenfolge beim Ablegen. Fehler beim Speichern stellen auch die Ansicht zurück.
+- PartyPicker: sanfte Übergänge zwischen den Statusfarben, Ein-/Ausblenden der Playlist-Titel und Überblenden der Waveform beim Titelwechsel.
+- Die Animationen blockieren weder Wiedergabe noch Speicherung; schnelle Änderungen können laufende Übergänge ersetzen.
+- Bildschirmrand-Scrollen, zehn Pixel Stoppabstand, Rückgängig und der korrigierte Vorhör-Startpunkt aus 2.0 bleiben erhalten.
+
 ## Neu in Version 2.0.1
 
 Automatisches Scrollen beim Ziehen beginnt ausschließlich durch Berühren des oberen oder unteren Bildschirmrands und stoppt ab zehn Pixeln Abstand. Die Grenzen des App-Fensters und der Listen lösen kein Scrollen mehr aus.
@@ -129,3 +138,7 @@ Titel mit Strg auswählen oder mit Strg und gedrückter linker Maustaste überst
 „An den Anfang“/„Ans Ende“ verschiebt ausgewählte Titel. „Zum Listenanfang“/„Zum Listenende“ bewegt nur die Ansicht. „Rückgängig“/Strg+Z nimmt eine Änderung zurück. Änderungen werden sofort gespeichert. Mit genau einem ausgewählten Titel schaltet die Leertaste zwischen Wiedergabe und Pause um. BPM wird aus vorhandenen Tags gelesen; es wird keine automatische BPM-Analyse durchgeführt.
 
 Korrektur in 2.0.0: „Vorhören ab“ wartet auf das Laden und bestätigt den tatsächlichen Startpunkt. Während des Sprungs bleibt der Ton kurz stumm. Die Behandlung kurzer Titel bleibt erhalten.
+
+## Animationen
+Beim Ziehen im Manager werden die ausgewählten Zeilen ausgeblendet und die übrigen Titel gleiten zusammen. Am anvisierten Einfügepunkt öffnet sich eine Vorschau-Lücke. Beim Ablegen blenden die Titel dort ein; erst dann wird gespeichert. Abbrechen stellt Reihenfolge und Auswahl wieder her. Ein Speicherfehler stellt auch die Vorschau zurück.
+In PartyPicker überblenden die Statusfarben, Titel blenden beim Aufnehmen/Entfernen ein oder aus, und die Waveform überblendet beim Titelwechsel. Die kurzen Übergänge verzögern weder die tatsächliche Listenänderung noch die Wiedergabe.

@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
     QSplitter, QCheckBox, QSlider, QComboBox, QSpinBox, QStackedWidget)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from playlist_manager import PlaylistManager
+from animations import RowMotion, ColorFadeDelegate, WaveCrossfade
 from core import (natural_key, path_key, read_playlist, save_playlist,
                   save_text_playlist, text_entry, track_identity, preview_position, normalization_gain)
 
@@ -473,6 +474,7 @@ class Window(QMainWindow):
         self.file_label.setWordWrap(True)
         player_layout.addWidget(self.file_label)
         self.wave = Waveform(self.t('wave_start'))
+        self.wave_fade = WaveCrossfade(self.wave)
         self.wave_message_key = 'wave_start'
         self.wave.seek.connect(self.seek)
         player_layout.addWidget(self.wave)
@@ -528,6 +530,9 @@ class Window(QMainWindow):
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         splitter = QSplitter(Qt.Vertical)
         self.sources, self.picks = QListWidget(), QListWidget()
+        self.source_fade = ColorFadeDelegate(self.sources)
+        self.sources.setItemDelegate(self.source_fade)
+        self.pick_motion = RowMotion(self.picks, [self.picks])
         self.sources.itemDoubleClicked.connect(lambda item: self.play_track(self.sources.row(item)))
         self.picks.itemDoubleClicked.connect(self.preview_pick)
         self.pane_labels = []
@@ -792,6 +797,9 @@ class Window(QMainWindow):
         if hasattr(self, 'manager'):
             self.manager.setEnabled(True)
         if error:
+            if hasattr(self, 'manager') and self.manager.model.projection is not None:
+                self.manager.motion.finish()
+                self.manager.reload()
             self.error(self.t('not_saved', error=self.translate_core_error(error)))
             return
         if not same_target:
@@ -816,6 +824,7 @@ class Window(QMainWindow):
             self.refresh()
             return
         action = change[0]
+        before = self.pick_motion.capture()
         if action == 'clear':
             self.picks.clear()
         elif action == 'append':
@@ -831,6 +840,7 @@ class Window(QMainWindow):
         self.location.setText(self.t('playlist_location', path=self.playlist))
         self.refresh_count()
         self.update_add()
+        self.pick_motion.animate(before)
 
     def choose_target(self):
         if self.text_only.isChecked():
@@ -894,9 +904,12 @@ class Window(QMainWindow):
     def add_pick_item(self, path):
         missing = self.availability.get(path_key(path)) is False
         self.picks.addItem(('⚠ ' if missing else '') + path.stem)
-        self.picks.item(self.picks.count() - 1).setToolTip(str(path))
+        item = self.picks.item(self.picks.count() - 1)
+        item.setToolTip(str(path))
+        item.setData(Qt.UserRole, str(path))
 
     def refresh(self):
+        before = self.pick_motion.capture()
         self.picks.clear()
         for p in self.selected:
             self.add_pick_item(p)
@@ -904,6 +917,7 @@ class Window(QMainWindow):
         self.refresh_count()
         self.update_add()
         self.update_source_colors()
+        self.pick_motion.animate(before)
 
     def check_files(self, entries):
         if not entries:
@@ -1062,10 +1076,12 @@ class Window(QMainWindow):
         self.apply_volume()
         self.title.setText(path.stem)
         self.file_label.setText(str(path))
+        old_wave = self.wave_fade.capture()
         self.wave.peaks, self.wave.fraction = [], 0
         self.wave_message_key = 'wave_loading'
         self.wave.message = self.t(self.wave_message_key)
         self.wave.update()
+        self.wave_fade.start(old_wave)
         self.requested_path, self.requested_folder_track = Path(path), folder_track
         probe = Probe(self.play_token, Path(path), self)
         probe.result.connect(self.probed)
@@ -1100,10 +1116,12 @@ class Window(QMainWindow):
         self.title.setText(title)
         self.track_gain = gain
         self.apply_volume()
+        old_wave = self.wave_fade.capture()
         self.wave.peaks = peaks
         self.wave_message_key = 'wave_unavailable' if error else ''
         self.wave.message = self.t(self.wave_message_key) if self.wave_message_key else ''
         self.wave.update()
+        self.wave_fade.start(old_wave)
         if error:
             self.statusBar().showMessage(self.t('wave_error', error=error))
 
@@ -1287,7 +1305,7 @@ class Window(QMainWindow):
             if item:
                 color = '#36dab5' if key in self.selected_keys else (
                     '#ffb454' if self.history.get(key) in ('heard', 'skipped') else '#8c97a5')
-                item.setForeground(QColor(color))
+                self.source_fade.change(item, color)
 
     def reset_history(self):
         dialog = QMessageBox(self)
@@ -1372,6 +1390,9 @@ class Window(QMainWindow):
                 QTimer.singleShot(0, lambda: self.play_track(self.index + 1) if token == self.play_token else None)
 
     def closeEvent(self, event):
+        self.source_fade.clear()
+        self.pick_motion.finish()
+        self.wave_fade.finish()
         self.preview_timer.stop()
         if hasattr(self, "manager"):
             self.manager.stop()

@@ -4,9 +4,10 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QAbstractListModel, QModelIndex, QMimeData, QItemSelectionModel, QThread, Signal, QUrl, QSize, QTimer
 from PySide6.QtGui import QDrag, QKeySequence, QShortcut, QPixmap, QPainter, QColor, QPen, QCursor, QGuiApplication
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-                               QListView, QAbstractItemView, QFileDialog, QScrollBar)
+                               QListView, QAbstractItemView, QFileDialog, QScrollBar, QStyledItemDelegate)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from tinytag import TinyTag
+from animations import RowMotion
 
 MIME = 'application/x-partypicker-rows'
 
@@ -74,28 +75,42 @@ class PlaylistModel(QAbstractListModel):
         super().__init__(parent)
         self.entries = []
         self.labels = {}
+        self.projection = None
+        self.drag_rows = None
+        self.drag_remaining = []
+        self.drag_target = None
+        self.drag_dropped = False
 
     def reset_entries(self, entries):
         self.beginResetModel()
         self.entries = list(entries)
+        self.projection = None
+        self.drag_rows = None
         self.endResetModel()
 
     def rowCount(self, parent=QModelIndex()):
-        return 0 if parent.isValid() else len(self.entries)
+        return 0 if parent.isValid() else len(self.projection) if self.projection is not None else len(self.entries)
 
     def data(self, index, role=Qt.DisplayRole):
-        if not index.isValid() or index.row() >= len(self.entries):
+        if not index.isValid() or index.row() >= self.rowCount():
             return None
-        path = self.entries[index.row()]
+        row = self.source_row(index.row())
+        if row is None:
+            return QSize(150, 28) if role == Qt.SizeHintRole else None
+        path = self.entries[row]
+        if role == Qt.UserRole:
+            return str(path)
         if role == Qt.SizeHintRole:
             return QSize(150, 28)
         if role == Qt.DisplayRole:
-            return f'{index.row() + 1}. ' + self.labels.get(str(path), Path(path).stem)
+            return f'{row + 1}. ' + self.labels.get(str(path), Path(path).stem)
         if role == Qt.ToolTipRole:
             return str(path)
         return None
 
     def flags(self, index):
+        if index.isValid() and self.source_row(index.row()) is None:
+            return Qt.ItemIsDropEnabled
         if index.isValid():
             return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled
         return Qt.ItemIsDropEnabled
@@ -116,19 +131,77 @@ class PlaylistModel(QAbstractListModel):
             if not isinstance(rows, list) or not all(isinstance(x, int) for x in rows):
                 return False
             destination = row if row >= 0 else (parent.row() if parent.isValid() else len(self.entries))
-            updated = moved_entries(self.entries, rows, destination)
+            if self.drag_rows is not None:
+                if sorted(rows) != self.drag_rows:
+                    return False
+                target = self.remaining_destination(destination)
+                order = self.drag_remaining[:target] + self.drag_rows + self.drag_remaining[target:]
+                updated = [self.entries[i] for i in order]
+                self.drag_dropped = True
+                self.drag_rows = None
+                self.set_projection(order)
+            else:
+                updated = moved_entries(self.entries, rows, destination)
         except (ValueError, TypeError):
             return False
         if updated != self.entries:
             self.reordered.emit(updated)
         return True
 
+    def source_row(self, display_row):
+        return self.projection[display_row] if self.projection is not None else display_row
+
+    def set_projection(self, projection):
+        self.beginResetModel()
+        self.projection = projection
+        self.endResetModel()
+
+    def begin_drag(self, rows):
+        self.drag_rows = sorted(set(rows))
+        self.drag_dropped = False
+        self.drag_target = None
+        selected = set(self.drag_rows)
+        self.drag_remaining = [i for i in range(len(self.entries)) if i not in selected]
+        self.set_projection([None if i in selected else i for i in range(len(self.entries))])
+
+    def collapse_drag(self):
+        if self.drag_rows is not None and self.drag_target is None:
+            self.set_projection(list(self.drag_remaining))
+
+    def remaining_destination(self, display_row):
+        if self.projection is None:
+            return max(0, min(display_row, len(self.entries)))
+        return sum(i is not None for i in self.projection[:max(0, display_row)])
+
+    def show_gap(self, target):
+        if self.drag_rows is None or target == self.drag_target:
+            return False
+        self.drag_target = max(0, min(target, len(self.drag_remaining)))
+        self.set_projection(self.drag_remaining[:self.drag_target] + [None] * len(self.drag_rows)
+                            + self.drag_remaining[self.drag_target:])
+        return True
+
+    def cancel_drag(self):
+        self.drag_rows = None
+        self.drag_target = None
+        self.drag_dropped = False
+        self.set_projection(None)
+
     def set_label(self, path, label):
         self.labels[path] = label
-        for row, entry in enumerate(self.entries):
-            if str(entry) == path:
+        for row in range(self.rowCount()):
+            source = self.source_row(row)
+            if source is not None and str(self.entries[source]) == path:
                 index = self.index(row, 0)
                 self.dataChanged.emit(index, index, [Qt.DisplayRole])
+
+
+class GapDelegate(QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        if index.data(Qt.UserRole) is None:
+            painter.fillRect(option.rect.adjusted(2, 1, -2, -1), QColor('#14362f'))
+            return
+        super().paint(painter, option, index)
 
 
 class PlaylistView(QListView):
@@ -136,6 +209,7 @@ class PlaylistView(QListView):
     resized = Signal()
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setItemDelegate(GapDelegate(self))
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
@@ -228,6 +302,8 @@ class PlaylistView(QListView):
             for view in owner.views:
                 if view.drop_point is not None:
                     view.drop_point = view.viewport().mapFromGlobal(cursor)
+                    if not direction:
+                        owner.preview_drop(view, view.drop_point)
                     view.viewport().update()
 
     def dragMoveEvent(self, event):
@@ -235,6 +311,8 @@ class PlaylistView(QListView):
             event.ignore()
             return
         self.drop_point = event.position().toPoint()
+        if getattr(self, 'manager', None):
+            self.manager.preview_drop(self, self.drop_point)
         self.viewport().update()
         event.setDropAction(Qt.MoveAction)
         event.accept()
@@ -247,8 +325,11 @@ class PlaylistView(QListView):
     def dropEvent(self, event):
         destination, _ = self.insertion_at(event.position().toPoint())
         self.drop_point = None
+        before = self.manager.motion.capture() if getattr(self, 'manager', None) else None
         self.viewport().update()
         if self.model().dropMimeData(event.mimeData(), Qt.MoveAction, destination, 0, QModelIndex()):
+            if before is not None:
+                self.manager.motion.animate(before)
             event.setDropAction(Qt.MoveAction)
             event.accept()
         else:
@@ -309,6 +390,9 @@ class PlaylistView(QListView):
             painter.drawText(QRect(8, line * 28, width - 16, 28), Qt.AlignVCenter, text)
         painter.end()
         drag.setPixmap(pixmap)
+        owner = getattr(self, 'manager', None)
+        if owner:
+            owner.begin_drag(rows)
         self.edge_direction = 0
         self.edge_last = time.monotonic()
         self.edge_timer.start()
@@ -319,6 +403,8 @@ class PlaylistView(QListView):
             if getattr(self, 'manager', None):
                 self.manager.scroll_feedback.clear()
             owner = getattr(self, 'manager', None)
+            if owner:
+                owner.end_drag(rows)
             for view in owner.views if owner else [self]:
                 view.drop_point = None
                 view.viewport().update()
@@ -386,6 +472,8 @@ class PlaylistManager(QWidget):
         bottom.addWidget(self.scroll_feedback)
         bottom.addStretch()
         layout.addLayout(bottom)
+        self.motion = RowMotion(self, self.views)
+        self.drag_generation = 0
         self.model.modelReset.connect(self.reset_pages)
         self.status = QLabel()
         layout.addWidget(self.status)
@@ -399,6 +487,8 @@ class PlaylistManager(QWidget):
         self.refresh_undo()
 
     def undo(self):
+        if self.model.drag_rows is not None:
+            return
         if getattr(self.window, 'save_job', None) or getattr(self.window, 'duplicate_job', None):
             return
         self.window.undo(on_success=self.reload)
@@ -420,6 +510,41 @@ class PlaylistManager(QWidget):
         self.current.setText('Aktuelle Playlist übernehmen' if de else 'Use current playlist')
         self.heading.setText('PLAYLIST-MANAGER · Links beginnt die Liste · rechts geht sie weiter' if de else 'PLAYLIST MANAGER · Playlist continues from left to right')
         self.status.setText('Strg + Ziehen: markieren · Auswahl ziehen: verschieben · Leertaste: vorhören' if de else 'Ctrl + drag: select · Drag selection to reorder · Space: preview')
+
+    def begin_drag(self, rows):
+        self.drag_generation += 1
+        generation = self.drag_generation
+        before = self.motion.capture()
+        self.model.begin_drag(rows)
+        self.motion.animate(before)
+        def collapse():
+            if generation == self.drag_generation and self.model.drag_rows is not None and self.model.drag_target is None:
+                before = self.motion.capture()
+                self.model.collapse_drag()
+                self.motion.animate(before)
+        QTimer.singleShot(140, collapse)
+
+    def preview_drop(self, view, point):
+        if self.model.drag_rows is None:
+            return
+        destination, _ = view.insertion_at(point)
+        target = self.model.remaining_destination(destination)
+        if target != self.model.drag_target:
+            before = self.motion.capture()
+            self.model.show_gap(target)
+            self.motion.animate(before)
+
+    def end_drag(self, rows):
+        self.drag_generation += 1
+        if not self.model.drag_dropped:
+            before = self.motion.capture()
+            self.model.cancel_drag()
+            for row in rows:
+                self.selection.select(self.model.index(row, 0), QItemSelectionModel.Select | QItemSelectionModel.Rows)
+            self.motion.animate(before)
+        elif self.model.projection is not None and not getattr(self.window, 'save_job', None):
+            # No change or rejected save: restore the authoritative in-memory list.
+            self.reload()
 
     def reset_pages(self):
         for view in self.views:
@@ -455,6 +580,8 @@ class PlaylistManager(QWidget):
             view.verticalScrollBar().setValue(0)
 
     def move_to_edge(self, end):
+        if self.model.drag_rows is not None:
+            return
         rows = [i.row() for i in self.selection.selectedRows()]
         if not rows:
             return
@@ -463,6 +590,9 @@ class PlaylistManager(QWidget):
             self.reorder(updated)
 
     def reload(self):
+        if self.model.drag_rows is not None:
+            return
+        self.drag_generation += 1
         self.refresh_undo()
         if self.metadata in self.metadata_jobs and self.metadata.isRunning():
             self.metadata.requestInterruption()
@@ -477,6 +607,8 @@ class PlaylistManager(QWidget):
         job.start()
 
     def open_file(self):
+        if self.model.drag_rows is not None:
+            return
         name, _ = QFileDialog.getOpenFileName(self, self.window.t('open_playlist_title'), '', self.window.t('open_playlist_filter'))
         if name and self.window.load_playlist(name):
             self.player.stop()
@@ -489,6 +621,8 @@ class PlaylistManager(QWidget):
             self.reload()
 
     def preview(self):
+        if self.model.drag_rows is not None:
+            return
         rows = self.selection.selectedRows()
         if len(rows) != 1:
             return
@@ -504,6 +638,10 @@ class PlaylistManager(QWidget):
             self.player.play()
 
     def stop(self):
+        self.drag_generation += 1
+        self.motion.finish()
+        if self.model.drag_rows is not None:
+            self.model.cancel_drag()
         self.player.stop()
         self.player.setSource(QUrl())
         for job in list(self.metadata_jobs):

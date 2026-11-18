@@ -163,3 +163,28 @@ class ScreenEdgeTests(unittest.TestCase):
                 self.assertEqual(view.edge_direction, 0)
                 self.assertEqual(view.edge_remainder, 0)
         manager.stop(); manager.close()
+
+class DragProjectionTests(unittest.TestCase):
+    def test_projected_drop_order_for_nonadjacent_and_all_tracks(self):
+        from playlist_manager import PlaylistModel
+        for selected in ([1, 3], [0, 7], list(range(8))):
+            original = [Path(f'/track-{i}.mp3') for i in range(8)]
+            chosen = [original[i] for i in selected]
+            remaining = [p for i, p in enumerate(original) if i not in selected]
+            for destination in range(len(remaining) + 1):
+                model = PlaylistModel()
+                model.reset_entries(original)
+                received = []
+                model.reordered.connect(received.append)
+                model.begin_drag(selected)
+                model.collapse_drag()
+                model.show_gap(destination)
+                self.assertEqual(model.entries, original)
+                mime = QMimeData()
+                mime.setData(MIME, json.dumps(selected).encode())
+                self.assertTrue(model.dropMimeData(mime, Qt.MoveAction, destination, 0, model.index(-1, 0)))
+                expected = remaining[:destination] + chosen + remaining[destination:]
+                displayed = [model.entries[model.source_row(i)] for i in range(model.rowCount())]
+                self.assertEqual(displayed, expected)
+                self.assertEqual(received, [expected] if expected != original else [])
+                self.assertEqual(model.entries, original)
