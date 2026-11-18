@@ -28,6 +28,7 @@ TEXTS = {
         'window_title': 'PARTYPICKER / Der Playlist-Generator',
         'subtitle': 'Der Playlist-Generator',
         'language': 'Sprache:',
+        'fullscreen_keys': 'F11: Vollbild umschalten · Esc: Vollbild verlassen',
         'new_playlist': 'Neue Playlist …', 'text_only': 'Nur TXT-Datei',
         'text_only_tip': 'Speichert eine reine Titelliste im Format Artist - Titel',
         'open_playlist': 'Playlist öffnen …', 'save_as': 'Speichern unter …',
@@ -77,6 +78,7 @@ TEXTS = {
         'window_title': 'PARTYPICKER / The Playlist Generator',
         'subtitle': 'The Playlist Generator',
         'language': 'Language:',
+        'fullscreen_keys': 'F11: toggle fullscreen · Esc: leave fullscreen',
         'new_playlist': 'New playlist …', 'text_only': 'TXT file only',
         'text_only_tip': 'Saves a plain track list in Artist - Title format',
         'open_playlist': 'Open playlist …', 'save_as': 'Save as …',
@@ -616,7 +618,39 @@ class Window(QMainWindow):
         self.statusBar().showMessage(self.t('ready'))
         self.manager = PlaylistManager(self)
         self.pages.addWidget(self.manager)
+        self.fullscreen_was_maximized = True
+        # Keep these separate from the picker-only shortcuts disabled in the manager.
+        self.fullscreen_shortcut = QShortcut(QKeySequence('F11'), self)
+        self.fullscreen_shortcut.setAutoRepeat(False)
+        self.fullscreen_shortcut.activated.connect(self.toggle_fullscreen)
+        self.fullscreen_escape = QShortcut(QKeySequence('Escape'), self)
+        self.fullscreen_escape.setAutoRepeat(False)
+        self.fullscreen_escape.activated.connect(self.leave_fullscreen)
         self.apply_compact_layout()
+
+    def show_startup_window(self):
+        # Existing installations have no setting yet and also start in fullscreen.
+        if self.settings.value('fullscreen', True, type=bool):
+            self.showFullScreen()
+        else:
+            self.showMaximized()
+
+    def toggle_fullscreen(self):
+        if self.isFullScreen():
+            self.leave_fullscreen()
+        else:
+            self.fullscreen_was_maximized = self.isMaximized()
+            self.showFullScreen()
+            self.settings.setValue('fullscreen', True)
+
+    def leave_fullscreen(self):
+        if not self.isFullScreen() or self.manager.model.drag_rows is not None:
+            return
+        if self.fullscreen_was_maximized:
+            self.showMaximized()
+        else:
+            self.showNormal()
+        self.settings.setValue('fullscreen', False)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -670,7 +704,7 @@ class Window(QMainWindow):
 
     def update_keyboard_hint(self):
         profile = self.keyboard_box.currentData()
-        self.shortcuts_label.setText(self.t('keys_' + profile) + '\n' + self.t('keys_common'))
+        self.shortcuts_label.setText(self.t('keys_' + profile) + '\n' + self.t('keys_common') + ' · ' + self.t('fullscreen_keys'))
 
     def configure_keyboard(self):
         for shortcut in self.keyboard_shortcuts:
@@ -1525,9 +1559,10 @@ def main():
     app.setStyle('Fusion')
     app.setStyleSheet(application_style())
     window = Window()
-    window.showMaximized()
+    window.show_startup_window()
     QTimer.singleShot(0, window.startup_choice)
     sys.exit(app.exec())
 
 if __name__ == '__main__':
     main()
+

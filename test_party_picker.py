@@ -352,6 +352,48 @@ class PartyPickerTests(unittest.TestCase):
         self.assertEqual(calls, [1])
         self.assertEqual(self.w.history[path_key(self.a)], 'skipped')
 
+    def test_fullscreen_default_and_remembered_choice(self):
+        self.w.show_startup_window(); APP.processEvents()
+        self.assertTrue(self.w.isFullScreen())
+        self.w.leave_fullscreen(); APP.processEvents()
+        self.assertFalse(self.w.isFullScreen())
+        self.assertTrue(self.w.isMaximized())
+        self.assertFalse(self.w.settings.value('fullscreen', True, type=bool))
+        other = Window()
+        try:
+            other.show_startup_window(); APP.processEvents()
+            self.assertFalse(other.isFullScreen())
+            self.assertTrue(other.isMaximized())
+        finally:
+            other.close(); APP.processEvents()
+        self.w.toggle_fullscreen(); APP.processEvents()
+        other = Window()
+        try:
+            other.show_startup_window(); APP.processEvents()
+            self.assertTrue(other.isFullScreen())
+        finally:
+            other.close(); APP.processEvents()
+
+    def test_fullscreen_shortcuts_in_picker_and_manager(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        self.w.show_startup_window()
+        self.w.activateWindow(); APP.processEvents(); QTest.qWait(30)
+        for manager in (False, True):
+            if manager:
+                self.w.show_manager()
+            APP.processEvents()
+            QTest.keyClick(self.w, Qt.Key_F11)
+            wait_for(lambda: not self.w.isFullScreen(), timeout=2)
+            QTest.keyClick(self.w, Qt.Key_F11)
+            wait_for(self.w.isFullScreen, timeout=2)
+            QTest.keyClick(self.w, Qt.Key_Escape)
+            wait_for(lambda: not self.w.isFullScreen(), timeout=2)
+            self.assertEqual(self.w.pages.currentIndex(), 1 if manager else 0)
+            QTest.keyClick(self.w, Qt.Key_Escape); APP.processEvents()
+            self.assertTrue(self.w.isVisible())
+            self.w.toggle_fullscreen(); APP.processEvents()
+
     def test_translations_and_shortcuts(self):
         self.assertEqual(set(TEXTS['de']), set(TEXTS['en']))
         self.w.language_box.setCurrentIndex(1)
@@ -360,3 +402,4 @@ class PartyPickerTests(unittest.TestCase):
         self.assertTrue(any(s.key().toString() == 'Ctrl+Z' for s in self.w.keyboard_shortcuts))
 
 if __name__ == '__main__': unittest.main()
+

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.5 – 2026-11-19
+
+- Echter Vollbildmodus ist die Standardansicht beim Start; die zuletzt gewählte Ansicht wird gespeichert.
+- F11 schaltet in beiden Oberflächen um, Esc verlässt das Vollbild.
+- Esc während eines Ziehvorgangs bricht nur das Verschieben ab und lässt das Vollbild bestehen.
+- Neue Prüfungen für Standardansicht, gespeicherte Auswahl, Tastenkürzel in beiden Oberflächen und Esc beim Ziehen.
+
 ## 2.1.4 – 2026-11-18
 
 - Neues rotes Einfahrt-verboten-Schild am Mauszeiger außerhalb der beiden Ablageflächen im Playlist-Manager.

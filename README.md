@@ -2,6 +2,10 @@
 
 Lokale Desktop-App zum Durchhören von FLAC- und MP3-Sammlungen und Zusammenstellen einer Party-Playlist. Python mit PySide6 ermöglicht direkte Dateizugriffe und Speichern ohne Browser-Berechtigungsdialoge. Wiedergabe über Qt Multimedia; Waveform aus den echten Audiodaten über SoundFile. TinyTag liest Artist-, Titel- und vorhandene BPM-Metadaten. Keine Musik-Uploads.
 
+## Neu in Version 2.1.5
+
+PartyPicker startet standardmäßig im echten Vollbild ohne Windows-Titelleiste und Taskleiste. Mit F11 wechselst du zwischen Vollbild und Fensteransicht; Esc verlässt das Vollbild. Beim Ziehen von Titeln bricht Esc nur das Verschieben ab. Die zuletzt gewählte Ansicht wird beim nächsten Start wiederhergestellt. Die Kürzel funktionieren in PartyPicker und im Playlist-Manager.
+
 ## Neu in Version 2.1.4
 
 Beim Ziehen von Titeln im Playlist-Manager zeigt ein kleines rotes Einfahrt-verboten-Schild an, dass außerhalb der beiden Playlist-Spalten nicht abgelegt werden kann. Über einer Playlist-Spalte erscheint wieder die Hand.

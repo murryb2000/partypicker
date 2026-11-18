@@ -1,7 +1,9 @@
-# PartyPicker 2.1.4
+# PartyPicker 2.1.5
 
-- Beim Ziehen im Playlist-Manager zeigt der Mauszeiger außerhalb der beiden Playlist-Fenster ein kleines rotes Einfahrt-verboten-Schild mit weißem Querbalken.
-- Innerhalb eines Playlist-Fensters erscheint wieder die Hand zum Ablegen.
-- Beim Loslassen außerhalb wird das Verschieben weiterhin abgebrochen; die bisherige Reihenfolge bleibt erhalten.
+- PartyPicker startet standardmäßig im echten Vollbild ohne Windows-Titelleiste und Taskleiste. Dies gilt auch für bestehende Installationen ohne gespeicherte Ansicht.
+- F11 wechselt zwischen Vollbild und Fensteransicht – in PartyPicker und im Playlist-Manager.
+- Esc verlässt das Vollbild. Während des Ziehens von Titeln bricht Esc ausschließlich den Ziehvorgang ab.
+- Die gewählte Ansicht wird für den nächsten Start gespeichert.
+- Hinweise zu F11 und Esc sind in der Tastatur-Kurzanleitung auf Deutsch und Englisch enthalten.
 
 ZIP vollständig entpacken und PartyPicker.exe starten. Die EXE ist weiterhin nicht digital signiert.

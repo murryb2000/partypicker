@@ -163,11 +163,13 @@ class InternalDragTests(unittest.TestCase):
 
     def test_escape_cancels_internal_drag_and_restores_selection(self):
         manager, entries = self.prepare()
+        self.w.showFullScreen(); APP.processEvents()
         QTimer.singleShot(60, lambda: QTest.keyClick(manager, Qt.Key_Escape))
         manager.views[0].startDrag(Qt.MoveAction)
         self.assertEqual(manager.model.entries, entries)
         self.assertIsNone(manager.model.projection)
         self.assertEqual(sorted(i.row() for i in manager.selection.selectedRows()), [0, 2])
+        self.assertTrue(self.w.isFullScreen())  # Escape cancelled only the drag.
         self.assertFalse(manager.views[0].edge_timer.isActive())
 
     def test_release_in_other_column_saves_once_and_undo_restores(self):
@@ -185,3 +187,4 @@ class InternalDragTests(unittest.TestCase):
         manager.undo()
         fixture.wait_for(lambda: self.w.pending_save is None and not self.w.jobs)
         self.assertEqual(read_playlist(self.w.playlist), entries)
+
