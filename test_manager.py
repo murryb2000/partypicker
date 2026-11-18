@@ -78,6 +78,11 @@ class ContinuousColumnsTests(unittest.TestCase):
 if __name__ == '__main__': unittest.main()
 
 class DragFeedbackTests(unittest.TestCase):
+    def setUp(self):
+        patcher = patch('drag_scroll.WINDOWS', None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_speed_steps(self):
         from playlist_manager import edge_speed
         self.assertEqual(edge_speed(1.49), 4)
@@ -123,6 +128,11 @@ class DragFeedbackTests(unittest.TestCase):
         manager.stop(); manager.close()
 
 class ScreenEdgeTests(unittest.TestCase):
+    def setUp(self):
+        patcher = patch('drag_scroll.WINDOWS', None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_contact_and_ten_pixel_release(self):
         from playlist_manager import screen_edge_direction as direction
         for top, bottom in [(0, 1079), (-1080, -1)]:

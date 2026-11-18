@@ -9,6 +9,7 @@ from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from tinytag import TinyTag
 from animations import RowMotion
 from background_jobs import ReadJob
+from drag_scroll import edge_position, DragHeartbeat
 
 MIME = 'application/x-partypicker-rows'
 
@@ -238,6 +239,7 @@ class PlaylistView(QListView):
         self.edge_timer = QTimer(self)
         self.edge_timer.setInterval(30)
         self.edge_timer.timeout.connect(self.poll_drag_edge)
+        self.edge_heartbeat = DragHeartbeat(self.edge_timer, self.poll_drag_edge)
         self.edge_since = self.edge_last = 0.0
         self.edge_remainder = 0.0
         self.drop_point = None
@@ -280,13 +282,11 @@ class PlaylistView(QListView):
     def poll_drag_edge(self):
         cursor = QCursor.pos()
         owner = getattr(self, 'manager', None)
-        screen = QGuiApplication.screenAt(cursor)
-        screen_rect = screen.geometry() if screen else None
-        key = (screen.name(), screen_rect.x(), screen_rect.y(),
-               screen_rect.width(), screen_rect.height(), screen.devicePixelRatio()) if screen else None
+        sample = edge_position()
+        key = sample.key if sample else None
         previous = self.edge_direction if key == self.edge_screen_key else 0
-        direction = screen_edge_direction(cursor.y(), screen_rect.top(), screen_rect.bottom(),
-                                          previous, screen.devicePixelRatio()) if screen else 0
+        direction = screen_edge_direction(sample.y, sample.top, sample.bottom,
+                                          previous, sample.scale) if sample else 0
         now = time.monotonic()
         if direction != self.edge_direction or key != self.edge_screen_key:
             self.edge_screen_key = key
@@ -403,11 +403,15 @@ class PlaylistView(QListView):
             owner.begin_drag(rows)
         self.edge_direction = 0
         self.edge_last = time.monotonic()
-        self.edge_timer.start()
+        self.edge_screen_key = None
+        self.edge_remainder = 0.0
+        self.edge_heartbeat.start()
         try:
             drag.exec(Qt.MoveAction)
         finally:
-            self.edge_timer.stop()
+            self.edge_heartbeat.stop()
+            self.edge_direction = 0
+            self.edge_remainder = 0.0
             if getattr(self, 'manager', None):
                 self.manager.scroll_feedback.clear()
             owner = getattr(self, 'manager', None)

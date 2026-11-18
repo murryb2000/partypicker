@@ -2,6 +2,10 @@
 
 Lokale Desktop-App zum Durchhören von FLAC- und MP3-Sammlungen und Zusammenstellen einer Party-Playlist. Python mit PySide6 ermöglicht direkte Dateizugriffe und Speichern ohne Browser-Berechtigungsdialoge. Wiedergabe über Qt Multimedia; Waveform aus den echten Audiodaten über SoundFile. TinyTag liest Artist-, Titel- und vorhandene BPM-Metadaten. Keine Musik-Uploads.
 
+## Neu in Version 2.1.3
+
+Das Bildschirmrand-Scrollen im Playlist-Manager wurde unter Windows korrigiert. Beim Ziehen beginnt es am tatsächlichen oberen oder unteren Bildschirmrand, beschleunigt auch bei unbewegter Maus und stoppt ab zehn Pixeln Abstand. Die Randprüfung verwendet Windows-Monitorpixel, damit hohe Skalierungen keine falschen Grenzen erzeugen.
+
 ## Neu in Version 2.1.2
 
 - Songtitel belegen genau eine Zeile und werden bei Bedarf am Ende mit „…“ gekürzt.
