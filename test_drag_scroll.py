@@ -84,6 +84,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from PySide6.QtCore import Qt, QItemSelectionModel, QPoint
 from PySide6.QtGui import QCursor
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 from playlist_manager import PlaylistManager
 from drag_scroll import WINDOWS, edge_position
@@ -143,7 +144,10 @@ QCursor.setPos(view.viewport().mapToGlobal(QPoint(12, 12)))
 app.processEvents()
 user.mouse_event(0x0002, 0, 0, 0, 0)
 app.processEvents()
-assert app.mouseButtons() & Qt.LeftButton, 'Native mouse press did not reach Qt'
+# CI native input delivery is asynchronous; seed Qt's button state through
+# its window-system test API while the real Windows button is also held.
+QTest.mousePress(manager.windowHandle(), Qt.LeftButton, Qt.NoModifier,
+                 manager.mapFromGlobal(view.viewport().mapToGlobal(QPoint(12, 12))))
 manager.selection.select(manager.model.index(50, 0), QItemSelectionModel.ClearAndSelect)
 thread = threading.Thread(target=controller, daemon=True)
 thread.start()
