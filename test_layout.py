@@ -112,7 +112,10 @@ with tempfile.TemporaryDirectory() as tmp:
         assert window.title.displayed_text().endswith('\u2026')
         window.close(); app.processEvents()
 '''
-        env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_SCALE_FACTOR='2')
+        # Windows offscreen uses a dummy font engine (one square per glyph).
+        # Use the native platform so these checks measure real Windows fonts.
+        platform = 'windows' if sys.platform == 'win32' else 'offscreen'
+        env = dict(os.environ, QT_QPA_PLATFORM=platform, QT_SCALE_FACTOR='2')
         result = subprocess.run([sys.executable, '-c', script], cwd=Path(__file__).parent,
                                 env=env, capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stderr)
