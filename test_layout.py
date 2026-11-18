@@ -62,10 +62,14 @@ class CompactLayoutTests(unittest.TestCase):
     def test_compact_switch_and_both_languages(self):
         for lang in ('de', 'en'):
             self.w.language_box.setCurrentIndex(0 if lang == 'de' else 1)
-            self.w.resize(1440, 900); self.w.show(); APP.processEvents()
+            # The CI desktop may be only 768px high and clamps shown windows.
+            # Check the normal breakpoint while hidden, then show the compact case.
+            self.w.hide()
+            self.w.resize(1440, 900)
+            self.w.apply_compact_layout()
             self.assertFalse(self.w.compact_mode)
             self.assertEqual(self.w.logo.height(), 80)
-            self.w.resize(1128, 752); APP.processEvents()
+            self.w.resize(1128, 752); self.w.show(); APP.processEvents()
             self.assertTrue(self.w.compact_mode)
             self.assertEqual(self.w.logo.height(), 64)
             self.assertEqual(self.w.wave.height(), 128)
