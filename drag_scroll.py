@@ -1,4 +1,4 @@
-"""Screen-edge sampling and a heartbeat that also runs in Windows' OLE drag loop."""
+"""Sample pointer and monitor edges in the same physical Windows coordinates."""
 import sys
 from dataclasses import dataclass
 from PySide6.QtGui import QCursor, QGuiApplication
@@ -22,8 +22,6 @@ class WindowsDragAPI:
             _fields_ = [('cbSize', wintypes.DWORD), ('monitor', wintypes.RECT),
                         ('work', wintypes.RECT), ('flags', wintypes.DWORD)]
         self.MonitorInfo = MonitorInfo
-        self.timer_proc = ctypes.WINFUNCTYPE(None, wintypes.HWND, wintypes.UINT,
-                                            ctypes.c_size_t, wintypes.DWORD)
         self.user32 = ctypes.WinDLL('user32', use_last_error=True)
         self.user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
         self.user32.GetCursorPos.restype = wintypes.BOOL
@@ -31,10 +29,6 @@ class WindowsDragAPI:
         self.user32.MonitorFromPoint.restype = wintypes.HANDLE
         self.user32.GetMonitorInfoW.argtypes = [wintypes.HANDLE, ctypes.POINTER(MonitorInfo)]
         self.user32.GetMonitorInfoW.restype = wintypes.BOOL
-        self.user32.SetTimer.argtypes = [wintypes.HWND, ctypes.c_size_t, wintypes.UINT, self.timer_proc]
-        self.user32.SetTimer.restype = ctypes.c_size_t
-        self.user32.KillTimer.argtypes = [wintypes.HWND, ctypes.c_size_t]
-        self.user32.KillTimer.restype = wintypes.BOOL
 
     def position(self):
         point = self.POINT()
@@ -66,39 +60,3 @@ def edge_position():
     key = (screen.name(), rect.x(), rect.y(), rect.width(), rect.height(), screen.devicePixelRatio())
     return EdgePosition(key, cursor.y(), rect.top(), rect.bottom(), screen.devicePixelRatio())
 
-
-class DragHeartbeat:
-    """Native timer callbacks are dispatched even inside the Windows OLE loop.
-
-    All callbacks run on the GUI thread. The callback stays alive until this
-    object is destroyed; an already queued WM_TIMER after stop is harmless.
-    """
-    def __init__(self, qt_timer, callback):
-        self.qt_timer, self.callback = qt_timer, callback
-        self.timer_id = 0
-        self.hwnd = None
-        self.active = False
-        self.native_callback = WINDOWS.timer_proc(self._tick) if WINDOWS is not None else None
-
-    def _tick(self, hwnd, message, timer_id, milliseconds):
-        if self.active and timer_id == self.timer_id:
-            self.callback()
-
-    def start(self):
-        self.stop()
-        self.active = True
-        if WINDOWS is not None:
-            # OLE/COM modal loops may defer thread-only WM_TIMER messages.
-            # Associate the callback with the real application window instead.
-            parent = self.qt_timer.parent()
-            self.hwnd = int(parent.window().winId()) if parent is not None else None
-            self.timer_id = WINDOWS.user32.SetTimer(self.hwnd, id(self), self.qt_timer.interval(), self.native_callback)
-        if not self.timer_id:
-            self.qt_timer.start()
-
-    def stop(self):
-        self.active = False
-        self.qt_timer.stop()
-        if self.timer_id:
-            WINDOWS.user32.KillTimer(self.hwnd, self.timer_id)
-            self.timer_id = 0

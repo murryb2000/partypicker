@@ -1,4 +1,4 @@
-"""Real OLE drag regression plus physical-edge and heartbeat lifecycle checks."""
+"""Internal drag regression, physical screen edges and stationary scrolling."""
 import os
 import sys
 import subprocess
@@ -8,42 +8,12 @@ from types import SimpleNamespace
 from unittest.mock import patch
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
-from drag_scroll import DragHeartbeat, EdgePosition
+from drag_scroll import EdgePosition
 
 APP = QApplication.instance() or QApplication([])
 
 
 class DragScrollTests(unittest.TestCase):
-    def test_native_heartbeat_start_stop_and_queued_callback(self):
-        callbacks, killed, fired = [], [], []
-        native = SimpleNamespace(timer_proc=lambda callback: callback,
-            user32=SimpleNamespace(SetTimer=lambda *args: callbacks.append(args[-1]) or 42,
-                                   KillTimer=lambda hwnd, timer: killed.append(timer)))
-        timer = QTimer(); timer.setInterval(30)
-        with patch('drag_scroll.WINDOWS', native):
-            heartbeat = DragHeartbeat(timer, lambda: fired.append(True))
-            heartbeat.start()
-            self.assertFalse(timer.isActive())
-            callbacks[-1](None, 0x113, 42, 0)
-            self.assertEqual(fired, [True])
-            heartbeat.stop()
-            callbacks[-1](None, 0x113, 42, 0)
-            self.assertEqual(fired, [True])
-            self.assertEqual(killed, [42])
-            heartbeat.start(); heartbeat.stop()
-            self.assertEqual(killed, [42, 42])
-
-    def test_native_timer_failure_uses_qt_timer(self):
-        native = SimpleNamespace(timer_proc=lambda callback: callback,
-            user32=SimpleNamespace(SetTimer=lambda *args: 0))
-        timer = QTimer(); timer.setInterval(30)
-        with patch('drag_scroll.WINDOWS', native):
-            heartbeat = DragHeartbeat(timer, lambda: None)
-            heartbeat.start()
-            self.assertTrue(timer.isActive())
-            heartbeat.stop()
-            self.assertFalse(timer.isActive())
-
     def test_physical_sample_scrolls_and_stops_at_exactly_ten_pixels(self):
         from playlist_manager import PlaylistManager
         manager = PlaylistManager(SimpleNamespace(lang='de', user_volume=.5, show_picker=lambda: None))
@@ -74,8 +44,8 @@ class DragScrollTests(unittest.TestCase):
         poll(-1495, 106.5, ('win32', 2))  # Changing monitor clears the latch.
         self.assertEqual(view.edge_direction, 0)
 
-    @unittest.skipUnless(sys.platform == 'win32', 'Native Windows drag loop')
-    def test_real_windows_drag_at_200_percent_with_stationary_cursor(self):
+    @unittest.skipUnless(sys.platform == 'win32', 'Windows input and physical screen edges')
+    def test_internal_windows_drag_at_200_percent_with_stationary_cursor(self):
         script = r'''
 import ctypes
 import threading
@@ -113,12 +83,6 @@ samples = []
 view.scroll_requested.connect(lambda delta: samples.append((phase['name'], delta, time.monotonic())))
 errors = []
 stop_at = []
-trace = []
-original_tick = view.edge_heartbeat.callback
-def tick():
-    original_tick()
-    trace.append((phase['name'], repr(edge_position()), view.edge_direction, manager.scroll.maximum()))
-view.edge_heartbeat.callback = tick
 def controller():
     try:
         time.sleep(.4)
@@ -131,7 +95,7 @@ def controller():
         time.sleep(.5)
         user.SetCursorPos(x, rect.top); phase['name'] = 'top'
         time.sleep(1.1)
-        user.SetCursorPos(x, middle); phase['name'] = 'middle'
+        user.SetCursorPos(x, rect.top+20); phase['name'] = 'middle'
         time.sleep(.2)
     except BaseException as exc:
         errors.append(repr(exc))
@@ -161,15 +125,63 @@ finally:
     thread.join(timeout=8)
     user.SetCursorPos(original.x, original.y)
 assert not thread.is_alive() and not errors, errors
-assert sum(delta for name, delta, _ in samples if name == 'bottom') >= 8, (samples, elapsed, held, trace[:4], trace[-4:])
+assert sum(delta for name, delta, _ in samples if name == 'bottom') >= 8, (samples, elapsed, held)
 assert any(name == 'nine' and delta > 0 for name, delta, _ in samples), samples
 assert not any(name == 'ten' and t > stop_at[0]+.1 for name, delta, t in samples), samples
 assert any(name == 'top' and delta < 0 for name, delta, _ in samples), samples
-assert not view.edge_heartbeat.active and not view.edge_timer.isActive()
+assert not view.edge_timer.isActive()
+assert manager.model.entries == entries and manager.model.projection is None
 manager.stop(); manager.close(); app.processEvents()
-print('Native stationary drag: bottom, nine-pixel latch, ten-pixel stop, top and cleanup OK')
+print('Internal stationary Windows drag: bottom, nine-pixel latch, ten-pixel stop, top and cleanup OK')
 '''
         result = subprocess.run([sys.executable, '-c', script], cwd=Path(__file__).parent,
             env=dict(os.environ, QT_QPA_PLATFORM='windows', QT_SCALE_FACTOR='2'),
             text=True, capture_output=True, timeout=20)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
+import test_party_picker as fixture
+from PySide6.QtCore import Qt, QPoint, QItemSelectionModel
+from PySide6.QtTest import QTest
+
+
+class InternalDragTests(unittest.TestCase):
+    setUp = fixture.PartyPickerTests.setUp
+    tearDown = fixture.PartyPickerTests.tearDown
+    save = fixture.PartyPickerTests.save
+    stub = fixture.PartyPickerTests.stub
+
+    def prepare(self):
+        self.w.playlist = self.root / 'internal-drag.m3u'
+        entries = [self.a, self.b] + [self.root/f'{i}.mp3' for i in range(6)]
+        self.save(entries)
+        self.w.show(); APP.processEvents(); self.w.show_manager(); APP.processEvents()
+        manager = self.w.manager
+        for row in (0, 2):
+            manager.selection.select(manager.model.index(row, 0), QItemSelectionModel.Select)
+        return manager, entries
+
+    def test_escape_cancels_internal_drag_and_restores_selection(self):
+        manager, entries = self.prepare()
+        QTimer.singleShot(60, lambda: QTest.keyClick(manager, Qt.Key_Escape))
+        manager.views[0].startDrag(Qt.MoveAction)
+        self.assertEqual(manager.model.entries, entries)
+        self.assertIsNone(manager.model.projection)
+        self.assertEqual(sorted(i.row() for i in manager.selection.selectedRows()), [0, 2])
+        self.assertFalse(manager.views[0].edge_timer.isActive())
+
+    def test_release_in_other_column_saves_once_and_undo_restores(self):
+        from core import read_playlist
+        manager, entries = self.prepare()
+        target = manager.views[1].viewport()
+        QTimer.singleShot(60, lambda: QTest.mouseRelease(target, Qt.LeftButton, Qt.NoModifier,
+                                                        QPoint(20, target.height()-5)))
+        manager.views[0].startDrag(Qt.MoveAction)
+        fixture.wait_for(lambda: self.w.pending_save is None and not self.w.jobs)
+        expected = [entry for i, entry in enumerate(entries) if i not in (0, 2)] + [entries[0], entries[2]]
+        self.assertEqual(read_playlist(self.w.playlist), expected)
+        self.assertEqual(manager.model.entries, expected)
+        self.assertFalse(manager.views[0].edge_timer.isActive())
+        manager.undo()
+        fixture.wait_for(lambda: self.w.pending_save is None and not self.w.jobs)
+        self.assertEqual(read_playlist(self.w.playlist), entries)

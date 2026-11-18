@@ -2,14 +2,15 @@ import json
 import time
 from pathlib import Path
 from PySide6.QtCore import Qt, QAbstractListModel, QModelIndex, QMimeData, QItemSelectionModel, Signal, Slot, QUrl, QSize, QTimer
-from PySide6.QtGui import QDrag, QKeySequence, QShortcut, QPixmap, QPainter, QColor, QPen, QCursor, QGuiApplication
+from PySide6.QtGui import QKeySequence, QShortcut, QPixmap, QPainter, QColor, QPen, QCursor, QGuiApplication
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
                                QListView, QAbstractItemView, QFileDialog, QScrollBar, QStyledItemDelegate)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from tinytag import TinyTag
 from animations import RowMotion
 from background_jobs import ReadJob
-from drag_scroll import edge_position, DragHeartbeat
+from drag_scroll import edge_position
+from internal_drag import InternalDrag
 
 MIME = 'application/x-partypicker-rows'
 
@@ -239,7 +240,6 @@ class PlaylistView(QListView):
         self.edge_timer = QTimer(self)
         self.edge_timer.setInterval(30)
         self.edge_timer.timeout.connect(self.poll_drag_edge)
-        self.edge_heartbeat = DragHeartbeat(self.edge_timer, self.poll_drag_edge)
         self.edge_since = self.edge_last = 0.0
         self.edge_remainder = 0.0
         self.drop_point = None
@@ -382,7 +382,7 @@ class PlaylistView(QListView):
             return
         mime = QMimeData()
         mime.setData(MIME, json.dumps(rows).encode('utf-8'))
-        drag = QDrag(self)
+        drag = InternalDrag(self)
         drag.setMimeData(mime)
         labels = [self.model().data(self.model().index(row, 0)) for row in rows[:3]]
         if len(rows) > 3:
@@ -405,11 +405,11 @@ class PlaylistView(QListView):
         self.edge_last = time.monotonic()
         self.edge_screen_key = None
         self.edge_remainder = 0.0
-        self.edge_heartbeat.start()
+        self.edge_timer.start()
         try:
             drag.exec(Qt.MoveAction)
         finally:
-            self.edge_heartbeat.stop()
+            self.edge_timer.stop()
             self.edge_direction = 0
             self.edge_remainder = 0.0
             if getattr(self, 'manager', None):

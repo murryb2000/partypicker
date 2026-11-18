@@ -3,9 +3,9 @@
 ## 2.1.3 – 2026-11-18
 
 - Rand-Scrollen im Playlist-Manager auf Windows-Monitorpixel umgestellt.
-- Nativer Scroll-Timer für den Windows-Drag-and-drop-Modus; Scrollen und Beschleunigung funktionieren auch ohne weitere Mausbewegung.
+- Interne Ziehvorgänge umgehen die blockierende Windows-OLE-Schleife; Scrollen und Beschleunigung funktionieren auch ohne weitere Mausbewegung.
 - Start ausschließlich am Bildschirmrand, Stopp ab zehn Pixeln Abstand; Monitorwechsel setzt den Randzustand zurück.
-- Neuer Windows-Integrationstest mit echtem Ziehvorgang und 200 Prozent Skalierung.
+- Neuer Windows-Integrationstest mit internem Ziehvorgang und 200 Prozent Skalierung.
 
 ## 2.1.2 – 2026-11-18
 
