@@ -1,5 +1,5 @@
 PARTYPICKER / Der Playlist-Generator
-by MurryB · Version 2.0.0
+by MurryB · Version 2.0.1
 ====================================
 
 KURZBESCHREIBUNG
@@ -170,7 +170,7 @@ Playlist-Manager in Version 2.0.0
 
 Der Button unten rechts im linken PartyPicker-Bereich öffnet den Manager im selben Fenster. Die aktuelle Playlist wird übernommen; alternativ kann eine M3U-/M3U8-Datei geladen werden. Links beginnt die Liste, rechts wird sie fortgeführt. Ein gemeinsamer Scrollbalken bewegt beide Spalten.
 
-Titel mit Strg auswählen oder mit Strg und gedrückter linker Maustaste überstreichen. Die Auswahl anschließend ziehen; die grüne Linie markiert die Einfügestelle. Die Ziehvorschau zeigt die ersten drei Titel und bei Bedarf +Restanzahl. Am oberen/unteren Rand scrollt die Liste automatisch: alle 1,5 Sekunden steigt die Geschwindigkeit auf 4, 8, 16, 28, 44 und maximal 60 Titel pro Sekunde. Beim Verlassen des Randbereichs endet das Scrollen und die Beschleunigung wird zurückgesetzt.
+Titel mit Strg auswählen oder mit Strg und gedrückter linker Maustaste überstreichen. Die Auswahl anschließend ziehen; die grüne Linie markiert die Einfügestelle. Die Ziehvorschau zeigt die ersten drei Titel und bei Bedarf +Restanzahl. Nach Berührung des oberen/unteren Bildschirmrands scrollt die Liste automatisch. Ab zehn Pixeln Abstand stoppt sie und setzt die Beschleunigung zurück. Geschwindigkeit: alle 1,5 Sekunden steigt die Geschwindigkeit auf 4, 8, 16, 28, 44 und maximal 60 Titel pro Sekunde. Beim Verlassen des Randbereichs endet das Scrollen und die Beschleunigung wird zurückgesetzt.
 
 „An den Anfang“/„Ans Ende“ verschiebt ausgewählte Titel. „Zum Listenanfang“/„Zum Listenende“ bewegt nur die Ansicht. „Rückgängig“/Strg+Z nimmt eine Änderung zurück. Änderungen werden sofort gespeichert. Mit genau einem ausgewählten Titel schaltet die Leertaste zwischen Wiedergabe und Pause um. BPM wird aus vorhandenen Tags gelesen; es wird keine automatische BPM-Analyse durchgeführt.
 

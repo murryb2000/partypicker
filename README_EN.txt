@@ -1,5 +1,5 @@
 PARTYPICKER / The Playlist Generator
-by MurryB · Version 2.0.0
+by MurryB · Version 2.0.1
 ====================================
 
 OVERVIEW
@@ -150,7 +150,7 @@ PLAYLIST MANAGER IN VERSION 2.0.0
 
 The button at the lower right of the PartyPicker playback pane opens the manager in the same window. It uses the current playlist or opens an M3U/M3U8 file. The playlist continues from the left column into the right column; both share one scrollbar.
 
-Use Ctrl-click or Ctrl with the left mouse button to select tracks, then drag the selection. A green insertion line shows the drop position. The drag preview shows three tracks plus the remaining count. Edge scrolling accelerates every 1.5 seconds: 4, 8, 16, 28, 44, then at most 60 tracks per second. Leaving the edge stops scrolling and resets acceleration.
+Use Ctrl-click or Ctrl with the left mouse button to select tracks, then drag the selection. A green insertion line shows the drop position. The drag preview shows three tracks plus the remaining count. Edge scrolling starts only on contact with the upper/lower screen edge and stops at a distance of at least ten pixels, resetting acceleration. Speed increases every 1.5 seconds: 4, 8, 16, 28, 44, then at most 60 tracks per second. Leaving the edge stops scrolling and resets acceleration.
 
 Move to beginning/end changes track order. Go to beginning/end only moves the view. Undo or Ctrl+Z restores a previous edit. Every edit is saved immediately. Space toggles preview playback for one selected track. BPM is read from existing file tags; there is no automatic BPM analysis.
 

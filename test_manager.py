@@ -89,7 +89,7 @@ class DragFeedbackTests(unittest.TestCase):
         self.assertEqual(edge_speed(120), 60)
 
     def test_line_and_drop_use_same_boundary(self):
-        from PySide6.QtCore import QPoint
+        from PySide6.QtCore import QPoint, QRect
         window = SimpleNamespace(lang='de', user_volume=.5, show_picker=lambda: None)
         manager = PlaylistManager(window)
         manager.resize(1000,700)
@@ -101,7 +101,11 @@ class DragFeedbackTests(unittest.TestCase):
         self.assertEqual(view.insertion_at(QPoint(rect.center().x(),rect.bottom()-2))[0],3)
         received=[]
         view.scroll_requested.connect(received.append)
-        edge = view.viewport().mapToGlobal(QPoint(20, view.viewport().height()-1))
+        screen = SimpleNamespace(geometry=lambda: QRect(0, 0, 1920, 1080), name=lambda: 'test', devicePixelRatio=lambda: 1.0)
+        screen_patch = patch('playlist_manager.QGuiApplication.screenAt', return_value=screen)
+        screen_patch.start()
+        self.addCleanup(screen_patch.stop)
+        edge = QPoint(20, 1079)
         with patch('playlist_manager.QCursor.pos', return_value=edge):
             with patch('playlist_manager.time.monotonic',return_value=100): view.poll_drag_edge()
             with patch('playlist_manager.time.monotonic',return_value=101): view.poll_drag_edge()
@@ -116,4 +120,46 @@ class DragFeedbackTests(unittest.TestCase):
         with patch('playlist_manager.QCursor.pos',return_value=middle): view.poll_drag_edge()
         self.assertEqual(view.edge_direction,0)
         self.assertEqual(view.edge_remainder,0)
+        manager.stop(); manager.close()
+
+class ScreenEdgeTests(unittest.TestCase):
+    def test_contact_and_ten_pixel_release(self):
+        from playlist_manager import screen_edge_direction as direction
+        for top, bottom in [(0, 1079), (-1080, -1)]:
+            self.assertEqual(direction(top + 1, top, bottom, 0), 0)
+            self.assertEqual(direction(bottom - 1, top, bottom, 0), 0)
+            self.assertEqual(direction(top, top, bottom, 0), -1)
+            self.assertEqual(direction(bottom, top, bottom, 0), 1)
+            self.assertEqual(direction(top + 9, top, bottom, -1), -1)
+            self.assertEqual(direction(top + 10, top, bottom, -1), 0)
+            self.assertEqual(direction(bottom - 9, top, bottom, 1), 1)
+            self.assertEqual(direction(bottom - 10, top, bottom, 1), 0)
+            self.assertEqual(direction(top + 9, top, bottom, 0), 0)
+            self.assertEqual(direction(top + 5, top, bottom, -1, 2), 0)
+
+    def test_window_edge_does_not_scroll(self):
+        from PySide6.QtCore import QPoint, QRect
+        manager = PlaylistManager(SimpleNamespace(lang='de', user_volume=.5, show_picker=lambda: None))
+        manager.resize(1000, 700)
+        manager.model.reset_entries([Path(f'/track-{i}.mp3') for i in range(200)])
+        manager.show(); app.processEvents()
+        view = manager.views[0]
+        screen = SimpleNamespace(geometry=lambda: QRect(0, 0, 1920, 1080), name=lambda: 'test', devicePixelRatio=lambda: 1.0)
+        received = []
+        view.scroll_requested.connect(received.append)
+        with patch('playlist_manager.QGuiApplication.screenAt', return_value=screen):
+            for y in (100, 700):
+                with patch('playlist_manager.QCursor.pos', return_value=QPoint(100, y)):
+                    view.poll_drag_edge()
+                    self.assertEqual(view.edge_direction, 0)
+            with patch('playlist_manager.QCursor.pos', return_value=QPoint(100, 1079)):
+                view.poll_drag_edge()
+                self.assertEqual(view.edge_direction, 1)
+            with patch('playlist_manager.QCursor.pos', return_value=QPoint(100, 1070)):
+                view.poll_drag_edge()
+                self.assertEqual(view.edge_direction, 1)
+            with patch('playlist_manager.QCursor.pos', return_value=QPoint(100, 1069)):
+                view.poll_drag_edge()
+                self.assertEqual(view.edge_direction, 0)
+                self.assertEqual(view.edge_remainder, 0)
         manager.stop(); manager.close()

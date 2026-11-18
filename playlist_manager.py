@@ -17,6 +17,19 @@ def edge_speed(seconds):
     return speeds[min(len(speeds) - 1, int(max(0, seconds) // 1.5))]
 
 
+def screen_edge_direction(y, top, bottom, previous, scale=1.0):
+    """Start only on contact; retain an active edge until 10 physical pixels away."""
+    if y <= top:
+        return -1
+    if y >= bottom:
+        return 1
+    if previous == -1 and (y - top) * scale < 10:
+        return -1
+    if previous == 1 and (bottom - y) * scale < 10:
+        return 1
+    return 0
+
+
 def moved_entries(entries, rows, destination):
     rows = sorted(set(r for r in rows if 0 <= r < len(entries)))
     destination = max(0, min(destination, len(entries)))
@@ -139,6 +152,7 @@ class PlaylistView(QListView):
         self.visible_start, self.visible_end = 0, 0
         self.shown_rows = None
         self.edge_direction = 0
+        self.edge_screen_key = None
         self.edge_timer = QTimer(self)
         self.edge_timer.setInterval(30)
         self.edge_timer.timeout.connect(self.poll_drag_edge)
@@ -183,27 +197,17 @@ class PlaylistView(QListView):
 
     def poll_drag_edge(self):
         cursor = QCursor.pos()
-        rect = self.viewport().rect()
-        point = self.viewport().mapFromGlobal(cursor)
         owner = getattr(self, 'manager', None)
-        if owner:
-            left = owner.mapToGlobal(owner.rect().topLeft()).x()
-            right = owner.mapToGlobal(owner.rect().topRight()).x()
-            in_width = left - 8 <= cursor.x() <= right + 8
-        else:
-            in_width = 0 <= point.x() <= rect.width()
         screen = QGuiApplication.screenAt(cursor)
         screen_rect = screen.geometry() if screen else None
-        at_top = screen_rect is not None and cursor.y() <= screen_rect.top() + 3
-        at_bottom = screen_rect is not None and cursor.y() >= screen_rect.bottom() - 3
-        direction = -1 if at_top else 1 if at_bottom else 0
-        if not direction and in_width:
-            # A wider release zone prevents tiny cursor movements from resetting
-            # the hold clock while a user remains at the same edge.
-            margin = 60 if self.edge_direction else 35
-            direction = -1 if point.y() < margin else 1 if point.y() >= rect.height() - margin else 0
+        key = (screen.name(), screen_rect.x(), screen_rect.y(),
+               screen_rect.width(), screen_rect.height(), screen.devicePixelRatio()) if screen else None
+        previous = self.edge_direction if key == self.edge_screen_key else 0
+        direction = screen_edge_direction(cursor.y(), screen_rect.top(), screen_rect.bottom(),
+                                          previous, screen.devicePixelRatio()) if screen else 0
         now = time.monotonic()
-        if direction != self.edge_direction:
+        if direction != self.edge_direction or key != self.edge_screen_key:
+            self.edge_screen_key = key
             self.edge_direction = direction
             self.edge_since = self.edge_last = now
             self.edge_remainder = 0.0

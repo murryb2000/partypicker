@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.1 – 2026-11-18
+
+- Korrigiert: Automatisches Scrollen beim Ziehen startet erst bei Berührung des tatsächlichen oberen oder unteren Bildschirmrands.
+- Das Scrollen stoppt bei mindestens zehn Pixeln Abstand; die Beschleunigung wird dabei zurückgesetzt.
+- Fensterränder und Listenränder lösen kein Scrollen mehr aus. Mehrere Monitore und Bildschirmskalierung werden berücksichtigt.
+- Die Geschwindigkeitskurve aus Version 2.0 bleibt erhalten.
+
 ## 2.0.0 – 2026-11-18
 
 - Playlist-Manager im selben Fenster, erreichbar unten rechts im PartyPicker.
