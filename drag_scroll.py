@@ -76,6 +76,7 @@ class DragHeartbeat:
     def __init__(self, qt_timer, callback):
         self.qt_timer, self.callback = qt_timer, callback
         self.timer_id = 0
+        self.hwnd = None
         self.active = False
         self.native_callback = WINDOWS.timer_proc(self._tick) if WINDOWS is not None else None
 
@@ -87,7 +88,11 @@ class DragHeartbeat:
         self.stop()
         self.active = True
         if WINDOWS is not None:
-            self.timer_id = WINDOWS.user32.SetTimer(None, 0, self.qt_timer.interval(), self.native_callback)
+            # OLE/COM modal loops may defer thread-only WM_TIMER messages.
+            # Associate the callback with the real application window instead.
+            parent = self.qt_timer.parent()
+            self.hwnd = int(parent.window().winId()) if parent is not None else None
+            self.timer_id = WINDOWS.user32.SetTimer(self.hwnd, id(self), self.qt_timer.interval(), self.native_callback)
         if not self.timer_id:
             self.qt_timer.start()
 
@@ -95,5 +100,5 @@ class DragHeartbeat:
         self.active = False
         self.qt_timer.stop()
         if self.timer_id:
-            WINDOWS.user32.KillTimer(None, self.timer_id)
+            WINDOWS.user32.KillTimer(self.hwnd, self.timer_id)
             self.timer_id = 0
