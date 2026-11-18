@@ -82,7 +82,8 @@ import threading
 import time
 from pathlib import Path
 from types import SimpleNamespace
-from PySide6.QtCore import Qt, QItemSelectionModel
+from PySide6.QtCore import Qt, QItemSelectionModel, QPoint
+from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication
 from playlist_manager import PlaylistManager
 from drag_scroll import WINDOWS, edge_position
@@ -138,7 +139,12 @@ def controller():
         user.keybd_event(0x1B, 0, 2, 0)
         user.mouse_event(0x0004, 0, 0, 0, 0)
 
+QCursor.setPos(view.viewport().mapToGlobal(QPoint(12, 12)))
+app.processEvents()
 user.mouse_event(0x0002, 0, 0, 0, 0)
+app.processEvents()
+assert app.mouseButtons() & Qt.LeftButton, 'Native mouse press did not reach Qt'
+manager.selection.select(manager.model.index(50, 0), QItemSelectionModel.ClearAndSelect)
 thread = threading.Thread(target=controller, daemon=True)
 thread.start()
 held = user.GetAsyncKeyState(1)
