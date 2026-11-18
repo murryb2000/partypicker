@@ -16,6 +16,7 @@ from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from playlist_manager import PlaylistManager
 from animations import RowMotion, ColorFadeDelegate, WaveCrossfade
 from background_jobs import ReadJob
+from responsive_widgets import ElidedLabel
 from core import (natural_key, path_key, read_playlist, save_playlist,
                   save_text_playlist, text_entry, track_identity, preview_position, normalization_gain)
 
@@ -394,21 +395,27 @@ class Window(QMainWindow):
         self.player.mediaStatusChanged.connect(self.media_status)
         self.player.errorOccurred.connect(self.playback_failed)
         root = QWidget()
+        self.picker_page = root
+        self.compact_mode = None
         self.pages = QStackedWidget()
         self.setCentralWidget(self.pages)
         self.pages.addWidget(root)
         layout = QVBoxLayout(root)
+        self.picker_layout = layout
         body = QSplitter(Qt.Horizontal)
         player_pane = QWidget()
         player_layout = QVBoxLayout(player_pane)
+        self.player_layout = player_layout
         player_layout.setContentsMargins(0, 0, 12, 0)
         body.addWidget(player_pane)
         head_row = QHBoxLayout()
+        self.header_layout = head_row
         head_row.setSpacing(12)
         self.logo = QLabel()
         self.logo.setFixedSize(80, 80)
         self.logo.setAlignment(Qt.AlignCenter)
         logo_pixmap = QPixmap(str(resource_path('PartyPicker-icon.png')))
+        self.logo_original = logo_pixmap
         scaled_logo = logo_pixmap.scaled(160, 160, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         scaled_logo.setDevicePixelRatio(2)
         self.logo.setPixmap(scaled_logo)
@@ -468,15 +475,13 @@ class Window(QMainWindow):
             row.setAlignment(toolbar_button, Qt.AlignTop)
         row.addStretch()
         player_layout.addLayout(row)
-        self.location = QLabel(self.t('first_playlist'))
-        self.location.setWordWrap(True)
+        self.location = ElidedLabel(self.t('first_playlist'), Qt.ElideMiddle)
         player_layout.addWidget(self.location)
-        self.title = QLabel(self.t('ready_listen'))
-        self.title.setStyleSheet('font-size:25px; font-weight:bold; padding-top:15px;')
-        self.title.setWordWrap(True)
+        self.title = ElidedLabel(self.t('ready_listen'), Qt.ElideRight)
+        self.title.setStyleSheet('font-size:25px; font-weight:bold;')
+        self.title.setContentsMargins(0, 15, 0, 0)
         player_layout.addWidget(self.title)
-        self.file_label = QLabel('')
-        self.file_label.setWordWrap(True)
+        self.file_label = ElidedLabel('', Qt.ElideMiddle)
         player_layout.addWidget(self.file_label)
         self.wave = Waveform(self.t('wave_start'))
         self.wave_fade = WaveCrossfade(self.wave)
@@ -611,6 +616,37 @@ class Window(QMainWindow):
         self.statusBar().showMessage(self.t('ready'))
         self.manager = PlaylistManager(self)
         self.pages.addWidget(self.manager)
+        self.apply_compact_layout()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, 'shortcuts_label'):
+            self.apply_compact_layout()
+
+    def apply_compact_layout(self):
+        compact = self.height() < 800 or self.width() < 1180
+        if compact == self.compact_mode:
+            return
+        self.compact_mode = compact
+        # Scope compact padding to the PartyPicker page; the manager is separate.
+        self.picker_page.setStyleSheet('QPushButton { padding:6px 8px; }' if compact else '')
+        self.picker_layout.setContentsMargins(*([6]*4 if compact else [9]*4))
+        self.picker_layout.setSpacing(4 if compact else 6)
+        self.player_layout.setContentsMargins(0, 0, 6 if compact else 12, 0)
+        self.player_layout.setSpacing(4 if compact else 6)
+        self.header_layout.setSpacing(8 if compact else 12)
+        self.title.setStyleSheet('font-size:22px; font-weight:bold;' if compact else 'font-size:25px; font-weight:bold;')
+        self.title.setContentsMargins(0, 6 if compact else 15, 0, 0)
+        self.head.setStyleSheet('font-size:20px; font-weight:bold;' if compact else 'font-size:22px; font-weight:bold;')
+        self.subtitle.setStyleSheet('font-size:13px;' if compact else 'font-size:15px;')
+        self.shortcuts_label.setStyleSheet('font-size:11px;' if compact else '')
+        size = 64 if compact else 80
+        self.logo.setFixedSize(size, size)
+        if not self.logo_original.isNull():
+            image = self.logo_original.scaled(size*2, size*2, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            image.setDevicePixelRatio(2)
+            self.logo.setPixmap(image)
+        self.title.updateGeometry()
 
     def show_manager(self):
         if self.save_job or self.duplicate_job:
@@ -1472,11 +1508,8 @@ def checkbox_style():
         'QCheckBox::indicator:disabled { border:1px solid #425970; }')
 
 
-def main():
-    app = QApplication(sys.argv)
-    app.setWindowIcon(QIcon(str(resource_path('PartyPicker.ico'))))
-    app.setStyle('Fusion')
-    app.setStyleSheet('''QWidget { background:#182333; color:#e8eef5; font-family:"Segoe UI"; font-size:13px; }
+def application_style():
+    return ('''QWidget { background:#182333; color:#e8eef5; font-family:"Segoe UI"; font-size:13px; }
     QPushButton { background:#293d53; padding:10px; border:1px solid #425970; border-radius:6px; }
     QPushButton:hover { background:#385570; } QPushButton:disabled { color:#748395; }
     QListWidget { background:#101827; border:1px solid #304258; border-radius:6px; }
@@ -1484,6 +1517,13 @@ def main():
     QSlider::groove:horizontal { height:6px; background:#456078; }
     QSlider::handle:horizontal { background:#36dab5; width:14px; margin:-5px 0; border-radius:6px; }'''
     + checkbox_style())
+
+
+def main():
+    app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(str(resource_path('PartyPicker.ico'))))
+    app.setStyle('Fusion')
+    app.setStyleSheet(application_style())
     window = Window()
     window.showMaximized()
     QTimer.singleShot(0, window.startup_choice)

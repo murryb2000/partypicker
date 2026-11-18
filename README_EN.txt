@@ -1,5 +1,5 @@
 PARTYPICKER / The Playlist Generator
-by MurryB · Version 2.1.1
+by MurryB · Version 2.1.2
 ====================================
 
 OVERVIEW
@@ -163,3 +163,7 @@ In PartyPicker, status colours transition smoothly, playlist tracks fade in/out 
 FIXES IN VERSION 2.1.1
 Large music folders are populated and coloured in a batch. Only visible subsequent status changes are animated. Navigation and closing do not wait for blocked file reads. Previously read metadata is cached.
 If a playlist save is still running when closing, the interface remains responsive until it finishes. A save failure keeps the window open and displays the error.
+
+COMPACT LAYOUT IN VERSION 2.1.2
+Song titles stay on one line; long titles end with an ellipsis. File and playlist paths are shortened in the middle. Hover over the text to see the full title/path. Internal titles and file paths remain unchanged.
+At smaller window heights or widths, PartyPicker uses compact spacing and controls automatically. The waveform keeps its full height. This helps with displays such as 2256 × 1504 at 200 percent Windows scaling.
