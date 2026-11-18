@@ -2,7 +2,7 @@ import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 import unittest
 from PySide6.QtCore import QPoint, QRect, Qt
-from PySide6.QtWidgets import QStyle, QStyleOptionButton
+from PySide6.QtWidgets import QStyle, QStyleOptionButton, QWidget
 import test_party_picker as fixture
 from party_picker import application_style
 
@@ -32,7 +32,11 @@ class CompactLayoutTests(unittest.TestCase):
         self.w.location.setText(playlist)
         APP.processEvents()
         self.assertEqual([label.height() for label in (self.w.title, self.w.file_label, self.w.location)], heights)
-        self.assertLessEqual(self.w.width(), 1128)
+        self.assertLessEqual(self.w.width(), 1128, sorted(
+            [(w.metaObject().className(), getattr(w, 'text', lambda: '')()[:80],
+              w.minimumSizeHint().width(), w.minimumWidth(), w.width())
+             for w in self.w.findChildren(QWidget) if w.minimumSizeHint().width() > 600],
+            key=lambda row: row[2], reverse=True))
         self.assertLessEqual(self.w.height(), 680)
         for label, original in [(self.w.title, title), (self.w.file_label, path), (self.w.location, playlist)]:
             self.assertEqual(label.text(), original)
@@ -65,7 +69,11 @@ class CompactLayoutTests(unittest.TestCase):
             self.assertTrue(self.w.compact_mode)
             self.assertEqual(self.w.logo.height(), 64)
             self.assertEqual(self.w.wave.height(), 128)
-            self.assertLessEqual(self.w.width(), 1128)
+            self.assertLessEqual(self.w.width(), 1128, sorted(
+            [(w.metaObject().className(), getattr(w, 'text', lambda: '')()[:80],
+              w.minimumSizeHint().width(), w.minimumWidth(), w.width())
+             for w in self.w.findChildren(QWidget) if w.minimumSizeHint().width() > 600],
+            key=lambda row: row[2], reverse=True))
             self.assertLessEqual(self.w.height(), 752)
 
     def test_full_text_is_preserved_and_rendering_is_single_line(self):
