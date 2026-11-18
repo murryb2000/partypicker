@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.4 – 2026-11-18
+
+- Neues rotes Einfahrt-verboten-Schild am Mauszeiger außerhalb der beiden Ablageflächen im Playlist-Manager.
+- Die Hand erscheint beim Zurückkehren in eine Playlist-Spalte; nach Ende oder Abbruch wird der normale Mauszeiger wiederhergestellt.
+
 ## 2.1.3 – 2026-11-18
 
 - Rand-Scrollen im Playlist-Manager auf Windows-Monitorpixel umgestellt.
@@ -115,3 +120,4 @@
 - Deutsche und englische Oberfläche.
 - TinyTag ersetzt Mutagen zum Lesen von Artist- und Title-Tags.
 - Windows-Ein-Datei-Build mit eingebettetem PartyPicker-Symbol.
+

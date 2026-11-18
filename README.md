@@ -2,6 +2,10 @@
 
 Lokale Desktop-App zum Durchhören von FLAC- und MP3-Sammlungen und Zusammenstellen einer Party-Playlist. Python mit PySide6 ermöglicht direkte Dateizugriffe und Speichern ohne Browser-Berechtigungsdialoge. Wiedergabe über Qt Multimedia; Waveform aus den echten Audiodaten über SoundFile. TinyTag liest Artist-, Titel- und vorhandene BPM-Metadaten. Keine Musik-Uploads.
 
+## Neu in Version 2.1.4
+
+Beim Ziehen von Titeln im Playlist-Manager zeigt ein kleines rotes Einfahrt-verboten-Schild an, dass außerhalb der beiden Playlist-Spalten nicht abgelegt werden kann. Über einer Playlist-Spalte erscheint wieder die Hand.
+
 ## Neu in Version 2.1.3
 
 Das Bildschirmrand-Scrollen im Playlist-Manager wurde unter Windows korrigiert. Beim Ziehen beginnt es am tatsächlichen oberen oder unteren Bildschirmrand, beschleunigt auch bei unbewegter Maus und stoppt ab zehn Pixeln Abstand. Die Randprüfung verwendet Windows-Monitorpixel, damit hohe Skalierungen keine falschen Grenzen erzeugen.
@@ -162,3 +166,4 @@ Korrektur in 2.0.0: „Vorhören ab“ wartet auf das Laden und bestätigt den t
 ## Animationen
 Beim Ziehen im Manager werden die ausgewählten Zeilen ausgeblendet und die übrigen Titel gleiten zusammen. Am anvisierten Einfügepunkt öffnet sich eine Vorschau-Lücke. Beim Ablegen blenden die Titel dort ein; erst dann wird gespeichert. Abbrechen stellt Reihenfolge und Auswahl wieder her. Ein Speicherfehler stellt auch die Vorschau zurück.
 In PartyPicker überblenden die Statusfarben, Titel blenden beim Aufnehmen/Entfernen ein oder aus, und die Waveform überblendet beim Titelwechsel. Die kurzen Übergänge verzögern weder die tatsächliche Listenänderung noch die Wiedergabe.
+

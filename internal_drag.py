@@ -1,7 +1,24 @@
 """Drag within the manager without Windows OLE blocking timers at the taskbar."""
-from PySide6.QtCore import QObject, QEvent, QEventLoop, QTimer, QPoint, QModelIndex, Qt
-from PySide6.QtGui import QCursor
+from PySide6.QtCore import QObject, QEvent, QEventLoop, QTimer, QPoint, QModelIndex, QRectF, Qt
+from PySide6.QtGui import QCursor, QPixmap, QPainter, QColor, QPen
 from PySide6.QtWidgets import QApplication, QLabel
+
+
+def no_entry_cursor():
+    """Small red no-entry sign, drawn sharply at high display scaling."""
+    image = QPixmap(48, 48)
+    image.setDevicePixelRatio(2)
+    image.fill(Qt.transparent)
+    painter = QPainter(image)
+    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setPen(QPen(QColor('#ffffff'), 1))
+    painter.setBrush(QColor('#e53935'))
+    painter.drawEllipse(QRectF(1.5, 1.5, 21, 21))
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QColor('#ffffff'))
+    painter.drawRoundedRect(QRectF(5, 10, 14, 4), .7, .7)
+    painter.end()
+    return QCursor(image, 12, 12)
 
 
 class InternalDrag(QObject):
@@ -12,6 +29,10 @@ class InternalDrag(QObject):
         self.target = None
         self.point = None
         self.accepted = False
+        self.hand_cursor = QCursor(Qt.ClosedHandCursor)
+        self.no_entry_cursor = no_entry_cursor()
+        self.cursor_active = False
+        self.cursor_valid = None
         self.loop = QEventLoop(self)
         self.timer = QTimer(self)
         self.timer.setInterval(30)
@@ -39,6 +60,7 @@ class InternalDrag(QObject):
                 if owner:
                     owner.preview_drop(view, point)
             view.viewport().update()
+        self.update_cursor()
         screen = QApplication.screenAt(position)
         preview_pos = position + QPoint(16, 16)
         if screen:
@@ -47,6 +69,14 @@ class InternalDrag(QObject):
             if preview_pos.y() + self.preview.height() > rect.bottom():
                 preview_pos.setY(position.y()-self.preview.height()-16)
         self.preview.move(preview_pos)
+
+    def update_cursor(self):
+        if not self.cursor_active:
+            return
+        valid = self.target is not None
+        if valid != self.cursor_valid:
+            QApplication.changeOverrideCursor(self.hand_cursor if valid else self.no_entry_cursor)
+            self.cursor_valid = valid
 
     def finish(self, accepted):
         self.accepted = accepted and self.target is not None
@@ -85,7 +115,9 @@ class InternalDrag(QObject):
         self.preview.show()
         app.installEventFilter(self)
         self.source.viewport().grabMouse()
-        app.setOverrideCursor(Qt.ClosedHandCursor)
+        app.setOverrideCursor(self.hand_cursor)
+        self.cursor_active = True
+        self.update_cursor()
         self.timer.start()
         try:
             self.loop.exec()
@@ -93,6 +125,7 @@ class InternalDrag(QObject):
             self.timer.stop()
             app.removeEventFilter(self)
             self.source.viewport().releaseMouse()
+            self.cursor_active = False
             app.restoreOverrideCursor()
             self.preview.hide()
             self.preview.deleteLater()
@@ -106,3 +139,4 @@ class InternalDrag(QObject):
                     owner.motion.animate(before)
                 return Qt.MoveAction
         return Qt.IgnoreAction
+
