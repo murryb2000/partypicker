@@ -1,5 +1,5 @@
 PARTYPICKER / Der Playlist-Generator
-by MurryB · Version 2.1.5
+by MurryB · Version 2.1.6
 ====================================
 
 KURZBESCHREIBUNG
@@ -184,7 +184,7 @@ KORREKTUREN IN VERSION 2.1.1
 Große Musikordner werden gesammelt aufgebaut und eingefärbt. Nur sichtbare spätere Farbwechsel werden animiert. Navigation und Schließen warten nicht auf blockierte Lesezugriffe. Bereits gelesene Metadaten werden zwischengespeichert.
 Falls beim Schließen noch eine Playlist gespeichert wird, bleibt die Oberfläche während des Abschlusses ansprechbar. Bei einem Speicherfehler bleibt das Fenster geöffnet und zeigt den Fehler an.
 
-KOMPAKTE ANSICHT IN VERSION 2.1.5
+KOMPAKTE ANSICHT IN VERSION 2.1.6
 Der Songtitel bleibt einzeilig; zu lange Titel enden mit „…“. Datei- und Playlist-Pfad werden in der Mitte gekürzt. Der vollständige Text ist beim Darüberfahren mit der Maus abrufbar. Interne Titel und Dateipfade bleiben vollständig erhalten.
 Bei geringer Fensterhöhe oder -breite verwendet PartyPicker automatisch kleinere Abstände und kompaktere Bedienelemente. Die Waveform behält ihre volle Höhe. Dies hilft beispielsweise bei 2256 × 1504 und 200 Prozent Windows-Skalierung.
 
@@ -197,3 +197,6 @@ Beim Ziehen im Playlist-Manager zeigt ein rotes Einfahrt-verboten-Schild außerh
 
 
 Vollbild: PartyPicker startet standardmäßig ohne Windows-Titelleiste und Taskleiste. F11 schaltet zwischen Vollbild und Fensteransicht um; Esc verlässt das Vollbild. Beim Ziehen von Titeln bricht Esc nur den Ziehvorgang ab. Die zuletzt gewählte Ansicht wird gespeichert. Gilt für beide Oberflächen.
+
+
+Im Vollbild oben links: „Fensteransicht [F11]“ zeigt die Windows-Leisten wieder an. „Beenden“ schließt PartyPicker und lässt laufende Speichervorgänge abschließen. Beide Buttons sind auch im Playlist-Manager verfügbar.

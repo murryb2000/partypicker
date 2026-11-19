@@ -394,6 +394,28 @@ class PartyPickerTests(unittest.TestCase):
             self.assertTrue(self.w.isVisible())
             self.w.toggle_fullscreen(); APP.processEvents()
 
+    def test_fullscreen_controls_in_both_pages_and_translation(self):
+        from PySide6.QtCore import Qt, QPoint
+        from PySide6.QtTest import QTest
+        self.w.show_startup_window(); APP.processEvents()
+        for manager in (False, True):
+            if manager:
+                self.w.show_manager(); APP.processEvents()
+            toolbar = self.w.fullscreen_controls
+            self.assertTrue(toolbar.isVisible())
+            self.assertLess(toolbar.mapTo(self.w, QPoint()).y(), 10)
+            button = toolbar.widgetForAction(self.w.windowed_action)
+            self.assertTrue(button.isVisible())
+            QTest.mouseClick(button, Qt.LeftButton); APP.processEvents()
+            self.assertFalse(self.w.isFullScreen())
+            self.assertTrue(toolbar.isHidden())
+            self.w.toggle_fullscreen(); APP.processEvents()
+        self.w.language_box.setCurrentIndex(1)
+        self.assertEqual(self.w.windowed_action.text(), 'Windowed view [F11]')
+        self.assertEqual(self.w.quit_action.text(), 'Quit')
+        QTest.mouseClick(self.w.fullscreen_controls.widgetForAction(self.w.quit_action), Qt.LeftButton)
+        wait_for(lambda: not self.w.isVisible())
+
     def test_translations_and_shortcuts(self):
         self.assertEqual(set(TEXTS['de']), set(TEXTS['en']))
         self.w.language_box.setCurrentIndex(1)

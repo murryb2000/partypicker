@@ -1,5 +1,5 @@
 PARTYPICKER / The Playlist Generator
-by MurryB · Version 2.1.5
+by MurryB · Version 2.1.6
 ====================================
 
 OVERVIEW
@@ -164,7 +164,7 @@ FIXES IN VERSION 2.1.1
 Large music folders are populated and coloured in a batch. Only visible subsequent status changes are animated. Navigation and closing do not wait for blocked file reads. Previously read metadata is cached.
 If a playlist save is still running when closing, the interface remains responsive until it finishes. A save failure keeps the window open and displays the error.
 
-COMPACT LAYOUT IN VERSION 2.1.5
+COMPACT LAYOUT IN VERSION 2.1.6
 Song titles stay on one line; long titles end with an ellipsis. File and playlist paths are shortened in the middle. Hover over the text to see the full title/path. Internal titles and file paths remain unchanged.
 At smaller window heights or widths, PartyPicker uses compact spacing and controls automatically. The waveform keeps its full height. This helps with displays such as 2256 × 1504 at 200 percent Windows scaling.
 
@@ -177,3 +177,6 @@ While dragging in the playlist manager, a small red no-entry sign indicates that
 
 
 Fullscreen: PartyPicker starts in fullscreen by default, without the Windows title bar or taskbar. F11 toggles fullscreen and windowed mode; Esc leaves fullscreen. While dragging tracks, Esc only cancels the drag. The last chosen mode is remembered. Works in both interfaces.
+
+
+At the top left in fullscreen: “Windowed view [F11]” restores the Windows title bar and taskbar. “Quit” closes PartyPicker and allows pending saves to finish. Both buttons are also available in the playlist manager.

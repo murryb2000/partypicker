@@ -1,9 +1,8 @@
-# PartyPicker 2.1.5
+# PartyPicker 2.1.6
 
-- PartyPicker startet standardmäßig im echten Vollbild ohne Windows-Titelleiste und Taskleiste. Dies gilt auch für bestehende Installationen ohne gespeicherte Ansicht.
-- F11 wechselt zwischen Vollbild und Fensteransicht – in PartyPicker und im Playlist-Manager.
-- Esc verlässt das Vollbild. Während des Ziehens von Titeln bricht Esc ausschließlich den Ziehvorgang ab.
-- Die gewählte Ansicht wird für den nächsten Start gespeichert.
-- Hinweise zu F11 und Esc sind in der Tastatur-Kurzanleitung auf Deutsch und Englisch enthalten.
+- Im Vollbild sind oben links zwei Buttons sichtbar: „Fensteransicht [F11]“ und „Beenden“.
+- „Fensteransicht“ zeigt die Windows-Titelleiste und Taskleiste wieder an; „Beenden“ schließt die App über den normalen Speichern-/Schließen-Ablauf.
+- Die Buttons sind in PartyPicker und im Playlist-Manager verfügbar und werden auf Deutsch beziehungsweise Englisch angezeigt.
+- In der Fensteransicht verschwinden die zusätzlichen Buttons. F11, Esc und die gespeicherte Ansicht bleiben erhalten.
 
 ZIP vollständig entpacken und PartyPicker.exe starten. Die EXE ist weiterhin nicht digital signiert.

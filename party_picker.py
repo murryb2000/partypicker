@@ -6,12 +6,12 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 from tinytag import TinyTag
-from PySide6.QtCore import Qt, QUrl, QThread, Signal, Slot, QTimer, QSettings
+from PySide6.QtCore import Qt, QUrl, QThread, Signal, Slot, QTimer, QSettings, QEvent
 from PySide6.QtGui import (QColor, QDesktopServices, QIcon, QPainter, QPen,
                            QShortcut, QKeySequence, QPixmap)
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QGridLayout, QPushButton, QLabel, QListWidget, QFileDialog, QMessageBox,
-    QSplitter, QCheckBox, QSlider, QComboBox, QSpinBox, QStackedWidget)
+    QSplitter, QCheckBox, QSlider, QComboBox, QSpinBox, QStackedWidget, QToolBar)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from playlist_manager import PlaylistManager
 from animations import RowMotion, ColorFadeDelegate, WaveCrossfade
@@ -28,6 +28,7 @@ TEXTS = {
         'window_title': 'PARTYPICKER / Der Playlist-Generator',
         'subtitle': 'Der Playlist-Generator',
         'language': 'Sprache:',
+        'windowed_view': 'Fensteransicht [F11]', 'exit_app': 'Beenden',
         'fullscreen_keys': 'F11: Vollbild umschalten · Esc: Vollbild verlassen',
         'new_playlist': 'Neue Playlist …', 'text_only': 'Nur TXT-Datei',
         'text_only_tip': 'Speichert eine reine Titelliste im Format Artist - Titel',
@@ -78,6 +79,7 @@ TEXTS = {
         'window_title': 'PARTYPICKER / The Playlist Generator',
         'subtitle': 'The Playlist Generator',
         'language': 'Language:',
+        'windowed_view': 'Windowed view [F11]', 'exit_app': 'Quit',
         'fullscreen_keys': 'F11: toggle fullscreen · Esc: leave fullscreen',
         'new_playlist': 'New playlist …', 'text_only': 'TXT file only',
         'text_only_tip': 'Saves a plain track list in Artist - Title format',
@@ -618,6 +620,22 @@ class Window(QMainWindow):
         self.statusBar().showMessage(self.t('ready'))
         self.manager = PlaylistManager(self)
         self.pages.addWidget(self.manager)
+        self.fullscreen_controls = QToolBar(self)
+        self.fullscreen_controls.setMovable(False)
+        self.fullscreen_controls.setFloatable(False)
+        self.fullscreen_controls.setAllowedAreas(Qt.TopToolBarArea)
+        self.fullscreen_controls.setContextMenuPolicy(Qt.PreventContextMenu)
+        self.fullscreen_controls.setStyleSheet(
+            'QToolBar { border:0; spacing:5px; padding:3px 6px; } '
+            'QToolButton { background:#293d53; color:#e8eef5; padding:4px 10px; '
+            'border:1px solid #425970; border-radius:4px; } '
+            'QToolButton:hover { background:#385570; }')
+        self.windowed_action = self.fullscreen_controls.addAction(self.t('windowed_view'))
+        self.windowed_action.triggered.connect(self.leave_fullscreen)
+        self.quit_action = self.fullscreen_controls.addAction(self.t('exit_app'))
+        self.quit_action.triggered.connect(self.close)
+        self.addToolBar(Qt.TopToolBarArea, self.fullscreen_controls)
+        self.fullscreen_controls.hide()
         self.fullscreen_was_maximized = True
         # Keep these separate from the picker-only shortcuts disabled in the manager.
         self.fullscreen_shortcut = QShortcut(QKeySequence('F11'), self)
@@ -651,6 +669,11 @@ class Window(QMainWindow):
         else:
             self.showNormal()
         self.settings.setValue('fullscreen', False)
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() == QEvent.WindowStateChange and hasattr(self, 'fullscreen_controls'):
+            self.fullscreen_controls.setVisible(self.isFullScreen())
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -775,6 +798,9 @@ class Window(QMainWindow):
         self.retranslate_ui()
 
     def retranslate_ui(self):
+        if hasattr(self, 'fullscreen_controls'):
+            self.windowed_action.setText(self.t('windowed_view'))
+            self.quit_action.setText(self.t('exit_app'))
         if hasattr(self, 'manager'):
             self.manager.retranslate()
         self.setWindowTitle(self.t('window_title'))

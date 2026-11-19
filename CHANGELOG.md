@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.6 – 2026-11-19
+
+- Vollbild-Steuerung oben links mit „Fensteransicht [F11]“ und „Beenden“, auch im Playlist-Manager.
+- Buttons erscheinen nur im Vollbild; die Beschriftung folgt der Spracheinstellung.
+- Beenden verwendet den bestehenden Ablauf zum sicheren Abschließen laufender Speichervorgänge.
+- UI-Prüfung mit echten Button-Klicks in beiden Oberflächen, Sprachwechsel und Schließen.
+
 ## 2.1.5 – 2026-11-19
 
 - Echter Vollbildmodus ist die Standardansicht beim Start; die zuletzt gewählte Ansicht wird gespeichert.
