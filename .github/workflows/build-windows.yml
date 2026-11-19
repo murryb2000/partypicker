@@ -37,7 +37,7 @@ jobs:
       - name: Regressionstests
         env:
           QT_QPA_PLATFORM: windows
-        run: python -m unittest -v test_party_picker test_manager test_visuals test_responsiveness test_layout test_drag_scroll test_safety
+        run: python -m unittest -v test_party_picker test_manager test_visuals test_responsiveness test_layout test_drag_scroll test_safety test_playlist_tools
 
       - name: PartyPicker.exe bauen
         run: >-

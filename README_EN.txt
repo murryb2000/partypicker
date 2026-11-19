@@ -1,5 +1,11 @@
 PARTYPICKER / The Playlist Generator
-by MurryB · Version 2.1.8
+by MurryB · Version 2.2
+
+NEW IN VERSION 2.2
+Playlist duration is displayed as hours:minutes:seconds. The manager also shows the duration of selected tracks. Durations are read in the background; ≥ means that the sum is incomplete while tracks are pending or unavailable.
+Before replacing a playlist, up to THREE previous states are kept beside it. Backup filenames include .backup-, a UTC timestamp and a unique identifier; their extension is unchanged. Identical saves do not create another backup. If creating a backup fails, the original playlist is not overwritten.
+To restore M3U/M3U8: open the backup in PartyPicker, then use Save as to save under the intended playlist name. TXT backups preserve the previous plain track list. Backups contain no music files and remain available after restarting PartyPicker.
+
 The current folder track stays in the fourth visible row where possible, with three preceding tracks above it.
 
 ====================================

@@ -1,6 +1,10 @@
 import os
 import re
 import tempfile
+import shutil
+import uuid
+import math
+from datetime import datetime, timezone
 from pathlib import Path
 from tinytag import TinyTag
 
@@ -45,6 +49,55 @@ def read_playlist(path):
     return entries
 
 
+BACKUP_LIMIT = 3
+
+
+def playlist_backups(path):
+    """Return only this playlist's generated snapshots, oldest first."""
+    path = Path(path)
+    pattern = re.compile(re.escape(path.name) + r'\.backup-\d{8}T\d{12}-[0-9a-f]{8}' + re.escape(path.suffix) + r'$')
+    return sorted((p for p in path.parent.iterdir() if pattern.fullmatch(p.name)), key=lambda p: p.name)
+
+
+def _same_contents(first, second):
+    try:
+        with open(first, 'rb') as a, open(second, 'rb') as b:
+            while True:
+                chunk = a.read(65536)
+                if chunk != b.read(65536):
+                    return False
+                if not chunk:
+                    return True
+    except FileNotFoundError:
+        return False
+
+
+def _backup_previous(path):
+    # Same directory preserves relative music paths in imported M3U files.
+    try:
+        source = path.open('rb')
+    except FileNotFoundError:
+        return
+    stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')
+    backup = path.with_name(f'{path.name}.backup-{stamp}-{uuid.uuid4().hex[:8]}{path.suffix}')
+    tmp = None
+    try:
+        with source:
+            fd, tmp = tempfile.mkstemp(prefix='.playlist-backup-', suffix='.tmp', dir=path.parent)
+            with os.fdopen(fd, 'wb') as out:
+                shutil.copyfileobj(source, out, length=65536)
+                out.flush()
+                os.fsync(out.fileno())
+        os.replace(tmp, backup)
+        for old in playlist_backups(path)[:-BACKUP_LIMIT]:
+            old.unlink()
+    except OSError as exc:
+        raise OSError(f'Backup: {exc}') from exc
+    finally:
+        if tmp is not None and os.path.exists(tmp):
+            os.unlink(tmp)
+
+
 def _write_lines(path, lines):
     """Replace atomically; a failed write retains the previous file."""
     path = Path(path)
@@ -54,6 +107,9 @@ def _write_lines(path, lines):
             out.write('\n'.join(lines) + '\n')
             out.flush()
             os.fsync(out.fileno())
+        if _same_contents(path, tmp):
+            return
+        _backup_previous(path)
         os.replace(tmp, path)
     finally:
         if os.path.exists(tmp):
@@ -128,3 +184,19 @@ def normalization_gain(rms, peak):
     if rms <= 1e-8 or peak <= 1e-8:
         return 1.0
     return max(0.0, min(2.0, 0.1 / rms, 0.98 / peak))
+
+
+def track_duration(path):
+    """Read duration off the GUI thread; None means unavailable/invalid."""
+    try:
+        value = float(TinyTag.get(path).duration)
+        return value if math.isfinite(value) and value >= 0 else None
+    except Exception:
+        return None
+
+
+def format_duration(seconds):
+    seconds = max(0, int(seconds + .5))
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    return f'{hours:02}:{minutes:02}:{seconds:02}'

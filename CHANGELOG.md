@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.2 – 2026-11-19
+
+- Gesamtdauer der Playlist in PartyPicker und im Playlist-Manager; der Manager zeigt zusätzlich die Dauer markierter Titel.
+- Längen werden asynchron gelesen und zwischengespeichert. Offene beziehungsweise nicht erreichbare Titel sind ausdrücklich gekennzeichnet; ≥ zeigt eine unvollständige Summe.
+- Vor dem Überschreiben werden bis zu drei bisherige Playlist-Stände direkt neben der Datei gesichert. Identische Inhalte erzeugen keine weitere Sicherung.
+- Sicherungsnamen enthalten Datum/Uhrzeit (UTC) und eine eindeutige Kennung. Der gleiche Ordner erhält die Bedeutung relativer M3U-Pfade.
+- Schlägt die Sicherung fehl, wird die bestehende Playlist nicht überschrieben. Die Musikdateien werden nicht kopiert.
+- Acht zusätzliche Tests für Dauer, Auswahl, Sprache, blockierte Zugriffe, Sicherungsrotation, relative Pfade und Schreibfehler.
+
 ## 2.1.8 – 2026-11-19
 
 ### Robustheitskorrekturen ohne Versionsänderung

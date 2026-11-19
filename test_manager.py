@@ -9,6 +9,15 @@ from playlist_manager import PlaylistModel, Metadata, MIME, moved_entries, Playl
 
 app = QApplication.instance() or QApplication([])
 
+
+def manager_window():
+    from party_picker import TEXTS
+    window = SimpleNamespace(lang='de', user_volume=.5, show_picker=lambda: None,
+                             request_durations=lambda: None,
+                             duration_display=lambda entries: '00:00:00')
+    window.t = lambda key, **values: TEXTS[window.lang][key].format(**values)
+    return window
+
 class ManagerTests(unittest.TestCase):
     def test_move_multiple_rows_preserves_order(self):
         self.assertEqual(moved_entries(list('abcdef'), [1, 3], 6), list('acefbd'))
@@ -36,7 +45,7 @@ class ManagerTests(unittest.TestCase):
         self.assertEqual(received, ['Artist - Title  ·  128 BPM'])
 
     def test_two_views_share_selection_and_single_track_preview(self):
-        w = SimpleNamespace(lang='de', user_volume=.5, show_picker=lambda:None)
+        w = manager_window()
         manager = PlaylistManager(w)
         manager.model.reset_entries([Path('/a.mp3'), Path('/b.mp3')])
         self.assertIs(manager.views[0].selectionModel(), manager.views[1].selectionModel())
@@ -48,7 +57,7 @@ class ManagerTests(unittest.TestCase):
 # Continuous columns and shared scrolling regression.
 class ContinuousColumnsTests(unittest.TestCase):
     def test_columns_scroll_and_edge_buttons(self):
-        window = SimpleNamespace(lang='de', user_volume=.5, show_picker=lambda: None)
+        window = manager_window()
         manager = PlaylistManager(window)
         manager.resize(1000, 700)
         entries = [Path(f'/track-{i}.mp3') for i in range(120)]
@@ -95,7 +104,7 @@ class DragFeedbackTests(unittest.TestCase):
 
     def test_line_and_drop_use_same_boundary(self):
         from PySide6.QtCore import QPoint, QRect
-        window = SimpleNamespace(lang='de', user_volume=.5, show_picker=lambda: None)
+        window = manager_window()
         manager = PlaylistManager(window)
         manager.resize(1000,700)
         manager.model.reset_entries([Path(f'/track-{i}.mp3') for i in range(80)])
@@ -149,7 +158,7 @@ class ScreenEdgeTests(unittest.TestCase):
 
     def test_window_edge_does_not_scroll(self):
         from PySide6.QtCore import QPoint, QRect
-        manager = PlaylistManager(SimpleNamespace(lang='de', user_volume=.5, show_picker=lambda: None))
+        manager = PlaylistManager(manager_window())
         manager.resize(1000, 700)
         manager.model.reset_entries([Path(f'/track-{i}.mp3') for i in range(200)])
         manager.show(); app.processEvents()

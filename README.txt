@@ -1,5 +1,11 @@
 PARTYPICKER / Der Playlist-Generator
-by MurryB · Version 2.1.8
+by MurryB · Version 2.2
+
+NEU IN VERSION 2.2
+Die Playlist-Dauer wird als Stunden:Minuten:Sekunden angezeigt. Im Manager steht zusätzlich die Dauer markierter Titel. Die Ermittlung läuft im Hintergrund. ≥ kennzeichnet eine noch unvollständige Summe; ausstehende und unbekannte Längen werden angegeben.
+Vor dem Überschreiben bleiben bis zu DREI frühere Stände direkt neben der Playlist erhalten. Sicherungsnamen enthalten .backup-, Datum/Uhrzeit (UTC) und eine Kennung; die Dateiendung bleibt erhalten. Gleiche Inhalte erzeugen keine zusätzliche Sicherung. Schlägt die Sicherung fehl, bleibt die bisherige Playlist unverändert.
+M3U/M3U8 wiederherstellen: Sicherung über Playlist öffnen laden, anschließend mit Speichern unter auf den gewünschten Playlist-Namen speichern. TXT-Sicherungen enthalten die frühere reine Titelliste. Musikdateien werden nicht kopiert. Die Sicherungen bleiben auch nach einem Neustart erhalten.
+
 Der aktuelle Titel im Musikordner bleibt möglichst in der vierten sichtbaren Zeile, mit drei vorherigen Titeln darüber.
 
 ====================================

@@ -15,8 +15,9 @@ APP = QApplication.instance() or QApplication([])
 
 class DragScrollTests(unittest.TestCase):
     def test_physical_sample_scrolls_and_stops_at_exactly_ten_pixels(self):
+        from test_manager import manager_window
         from playlist_manager import PlaylistManager
-        manager = PlaylistManager(SimpleNamespace(lang='de', user_volume=.5, show_picker=lambda: None))
+        manager = PlaylistManager(manager_window())
         self.addCleanup(manager.close)
         self.addCleanup(manager.stop)
         manager.model.reset_entries([Path(f'/track-{i}.mp3') for i in range(250)])
@@ -60,8 +61,9 @@ from playlist_manager import PlaylistManager
 from drag_scroll import WINDOWS, edge_position
 
 app = QApplication([]); app.setStyle('Fusion')
+from test_manager import manager_window
 app.setStyleSheet('QWidget { font-size:13px; }')
-manager = PlaylistManager(SimpleNamespace(lang='de', user_volume=.5, show_picker=lambda: None))
+manager = PlaylistManager(manager_window())
 manager.resize(900, 600); manager.show(); app.processEvents()
 entries = [Path(f'/track-{i}.mp3') for i in range(300)]
 manager.model.reset_entries(entries); app.processEvents()

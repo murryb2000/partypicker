@@ -11,6 +11,7 @@ from animations import RowMotion
 from background_jobs import ReadJob
 from drag_scroll import edge_position
 from internal_drag import InternalDrag
+from responsive_widgets import ElidedLabel
 
 MIME = 'application/x-partypicker-rows'
 
@@ -457,12 +458,19 @@ class PlaylistManager(QWidget):
         layout.addLayout(bar)
         self.heading = QLabel()
         layout.addWidget(self.heading)
+        duration_bar = QHBoxLayout()
+        self.total_duration = ElidedLabel('')
+        self.selection_duration = ElidedLabel('')
+        duration_bar.addWidget(self.total_duration, 1)
+        duration_bar.addWidget(self.selection_duration, 1)
+        layout.addLayout(duration_bar)
         panes = QHBoxLayout()
         self.scroll = QScrollBar(Qt.Vertical)
         self.capacity = 1
         self.scroll.valueChanged.connect(self.update_pages)
         self.views = [PlaylistView(), PlaylistView()]
         self.selection = QItemSelectionModel(self.model, self)
+        self.selection.selectionChanged.connect(self.refresh_duration_summary)
         for view in self.views:
             view.manager = self
             view.setModel(self.model)
@@ -489,6 +497,7 @@ class PlaylistManager(QWidget):
         self.motion = RowMotion(self, self.views)
         self.drag_generation = 0
         self.model.modelReset.connect(self.reset_pages)
+        self.model.modelReset.connect(self.refresh_duration_summary)
         self.status = QLabel()
         layout.addWidget(self.status)
         self.space = QShortcut(QKeySequence('Space'), self)
@@ -524,6 +533,19 @@ class PlaylistManager(QWidget):
         self.current.setText('Aktuelle Playlist übernehmen' if de else 'Use current playlist')
         self.heading.setText('PLAYLIST-MANAGER · Links beginnt die Liste · rechts geht sie weiter' if de else 'PLAYLIST MANAGER · Playlist continues from left to right')
         self.status.setText('Strg + Ziehen: markieren · Auswahl ziehen: verschieben · Leertaste: vorhören' if de else 'Ctrl + drag: select · Drag selection to reorder · Space: preview')
+        self.refresh_duration_summary()
+
+    def refresh_duration_summary(self, *args):
+        if not hasattr(self, 'selection'):
+            return
+        if self.model.drag_rows is not None:
+            rows = self.model.drag_rows
+        else:
+            rows = [self.model.source_row(i.row()) for i in self.selection.selectedRows()]
+        selected = [self.model.entries[row] for row in sorted(set(r for r in rows if r is not None))
+                    if 0 <= row < len(self.model.entries)]
+        self.total_duration.setText(self.window.t('playlist_duration', duration=self.window.duration_display(self.model.entries)))
+        self.selection_duration.setText(self.window.t('selection_duration', count=len(selected), duration=self.window.duration_display(selected)))
 
     def begin_drag(self, rows):
         self.drag_generation += 1
@@ -612,6 +634,8 @@ class PlaylistManager(QWidget):
             job.requestInterruption()
         self.metadata = None
         self.model.reset_entries(self.window.selected)
+        self.window.request_durations()
+        self.refresh_duration_summary()
         self.audio.setVolume(self.window.user_volume)
         self.pending_metadata = [p for p in self.window.selected if str(p) not in self.model.labels]
         self.metadata_active = True

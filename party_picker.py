@@ -18,7 +18,8 @@ from animations import RowMotion, ColorFadeDelegate, WaveCrossfade
 from background_jobs import ReadJob
 from responsive_widgets import ElidedLabel
 from core import (natural_key, path_key, read_playlist, save_playlist,
-                  save_text_playlist, text_entry, track_identity, preview_position, normalization_gain)
+                  save_text_playlist, text_entry, track_identity, preview_position, normalization_gain,
+                  track_duration, format_duration)
 
 
 KO_FI_URL = 'https://ko-fi.com/murryb'
@@ -168,6 +169,17 @@ for language, additions in {'de': {'preview_start': 'Vorhören ab:', 'normalize'
     TEXTS[language].update(additions)
 
 
+for language, additions in {
+    'de': {'playlist_duration': 'Playlist-Dauer: {duration}',
+           'selection_duration': '{count} markiert · Dauer: {duration}',
+           'duration_pending': '{count} werden ermittelt', 'duration_unknown': '{count} unbekannt'},
+    'en': {'playlist_duration': 'Playlist duration: {duration}',
+           'selection_duration': '{count} selected · Duration: {duration}',
+           'duration_pending': '{count} pending', 'duration_unknown': '{count} unknown'},
+}.items():
+    TEXTS[language].update(additions)
+
+
 def resource_path(name):
     """Resolve bundled assets both from source and a PyInstaller one-file EXE."""
     base = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
@@ -273,6 +285,28 @@ class LoadPlaylist(ReadJob):
         except Exception as exc:
             self.publish('result', self.token, self.path, [], {}, str(exc))
 
+
+
+class Durations(ReadJob):
+    found = Signal(object)
+
+    def __init__(self, entries, parent):
+        super().__init__(parent)
+        self.entries = list(entries)
+
+    def run(self):
+        updates = {}
+        since = time.monotonic()
+        for path in self.entries:
+            if self.isInterruptionRequested():
+                return
+            updates[path_key(path)] = track_duration(path)
+            if len(updates) >= 128 or time.monotonic() - since >= .25:
+                self.publish('found', dict(updates))
+                updates.clear()
+                since = time.monotonic()
+        if updates:
+            self.publish('found', updates)
 
 
 class Probe(ReadJob):
@@ -401,6 +435,7 @@ class Window(QMainWindow):
         self.resize(1180, 780)
         self.tracks, self.selected, self.jobs = [], [], []
         self.pending_reads = {}
+        self.duration_cache, self.duration_target = {}, frozenset()
         self.load_token, self.loading_playlist = 0, False
         self.load_callback = None
         self.selected_keys, self.text_cache, self.availability = set(), {}, {}
@@ -602,6 +637,10 @@ class Window(QMainWindow):
             pane_label = QLabel(label)
             self.pane_labels.append(pane_label)
             box.addWidget(pane_label)
+            if widget is self.picks:
+                self.playlist_duration_label = ElidedLabel('')
+                self.playlist_duration_label.setStyleSheet('font-size:11px; color:#a9b7c6;')
+                box.addWidget(self.playlist_duration_label)
             if widget is self.sources:
                 self.legend = QLabel(self.t('legend'))
                 self.legend.setStyleSheet('font-size:11px; color:#a9b7c6;')
@@ -1124,6 +1163,49 @@ class Window(QMainWindow):
 
     def refresh_count(self):
         self.count.setText(self.t('count', tracks=len(self.tracks), selected=len(self.selected)))
+        self.count.setToolTip(self.t('playlist_duration', duration=self.duration_display(self.selected)))
+        if hasattr(self, 'playlist_duration_label'):
+            self.playlist_duration_label.setText(self.t('playlist_duration', duration=self.duration_display(self.selected)))
+        self.request_durations()
+
+    def duration_display(self, entries):
+        total, pending, unknown = 0.0, 0, 0
+        for path in entries:
+            key = path_key(path)
+            if key not in self.duration_cache:
+                pending += 1
+            elif self.duration_cache[key] is None:
+                unknown += 1
+            else:
+                total += self.duration_cache[key]
+        text = ('≥ ' if pending or unknown else '') + format_duration(total)
+        if pending:
+            text += ' · ' + self.t('duration_pending', count=pending)
+        if unknown:
+            text += ' · ' + self.t('duration_unknown', count=unknown)
+        return text
+
+    def request_durations(self):
+        if self._closing:
+            return
+        missing = {path_key(p): p for p in self.selected if path_key(p) not in self.duration_cache}
+        target = frozenset(missing)
+        if not target or target == self.duration_target:
+            return
+        self.duration_target = target
+        job = Durations(missing.values(), self)
+        job.found.connect(self.durations_found)
+        self.launch(job)
+
+    @Slot(object)
+    def durations_found(self, updates):
+        if self._closing:
+            return
+        self.duration_cache.update(updates)
+        if hasattr(self, 'playlist_duration_label'):
+            self.playlist_duration_label.setText(self.t('playlist_duration', duration=self.duration_display(self.selected)))
+        self.count.setToolTip(self.t('playlist_duration', duration=self.duration_display(self.selected)))
+        self.manager.refresh_duration_summary()
 
     def update_add(self):
         current = self.current_path()
@@ -1151,7 +1233,7 @@ class Window(QMainWindow):
         return Path(url.toLocalFile()) if url.isLocalFile() else None
 
     def launch(self, job):
-        if isinstance(job, (Probe, Analyze, LoadPlaylist, Scan, CheckFiles)):
+        if isinstance(job, (Probe, Analyze, LoadPlaylist, Scan, CheckFiles, Durations)):
             kind = type(job)
             active = [j for j in self.jobs if type(j) is kind]
             for previous in active:
