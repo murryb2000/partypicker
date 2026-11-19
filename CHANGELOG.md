@@ -2,6 +2,16 @@
 
 ## 2.1.8 – 2026-11-19
 
+### Robustheitskorrekturen ohne Versionsänderung
+
+- Verspätetes Speichern nach „Aufnehmen & weiter“ überspringt keinen weiteren Titel, wenn zwischenzeitlich navigiert wurde.
+- Waveform-Analyse liest höchstens 4096 Frames pro Block und erzeugt höchstens 1600 Punkte; manipulierte Längenangaben vergrößern den Puffer nicht.
+- Playlist-Import einschließlich TXT-Sitzungsprüfung läuft im Hintergrund. Veraltete Ergebnisse werden verworfen; Fehler erhalten die bisherige Playlist.
+- Maximal zwei gleichartige Lesejobs laufen parallel; nur der neueste wartende Auftrag bleibt erhalten.
+- Mindestversion PySide6 6.12.0; Starten.bat aktualisiert ältere bestehende Umgebungen einmalig.
+- Zusätzliche Regressionstests für verzögerte Speicherung, NAS-Import, Job-Begrenzung und manipulierte FLAC-Header.
+
+
 - Farbüberblendungen im Vorhörfenster dauern jetzt 440 statt 220 Millisekunden und laufen damit halb so schnell. Timer-Intervall und Begrenzung auf sichtbare Titel bleiben erhalten.
 
 ## 2.1.7 – 2026-11-19

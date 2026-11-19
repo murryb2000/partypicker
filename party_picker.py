@@ -251,6 +251,29 @@ class CheckFiles(ReadJob):
         self.publish('result', self.entries, states)
 
 
+class LoadPlaylist(ReadJob):
+    result = Signal(int, object, object, object, str)
+
+    def __init__(self, token, path, session, parent):
+        super().__init__(parent)
+        self.token, self.path, self.session = token, Path(path), session or {}
+
+    def run(self):
+        try:
+            labels = {}
+            if self.path.suffix.lower() == '.txt':
+                entries = [Path(p) for p in self.session.get('entries', [])]
+                labels = dict(self.session.get('labels', {}))
+                expected = [labels[path_key(p)].replace('\r', ' ').replace('\n', ' ') for p in entries]
+                if self.path.read_text(encoding='utf-8-sig').splitlines() != (expected or ['']):
+                    raise ValueError('txt_changed')
+            else:
+                entries = read_playlist(self.path)
+            self.publish('result', self.token, self.path, entries, labels, '')
+        except Exception as exc:
+            self.publish('result', self.token, self.path, [], {}, str(exc))
+
+
 
 class Probe(ReadJob):
     result = Signal(int, object, object, str)
@@ -296,16 +319,34 @@ class Analyze(ReadJob):
         try:
             square_sum, samples, peak = 0.0, 0, 0.0
             with sf.SoundFile(str(self.path)) as audio:
-                block = max(1, int(np.ceil(len(audio) / 1600)))
+                if not 1 <= audio.channels <= 8:
+                    raise ValueError('Unsupported audio channel count')
+                # Never allocate a buffer from an untrusted header length.
+                bin_size = max(1, (len(audio) + 1599) // 1600)
                 peaks = []
-                for data in audio.blocks(blocksize=block, dtype='float32', always_2d=True):
+                frames_read = 0
+                while True:
                     if self.isInterruptionRequested():
                         return
+                    data = audio.read(4096, dtype='float32', always_2d=True)
+                    if not data.size:
+                        break  # Real EOF, even when the header advertises more.
+                    np.nan_to_num(data, copy=False, nan=0.0, posinf=1.0, neginf=-1.0)
                     block_peak = float(np.abs(data).max())
-                    peaks.append(block_peak)
                     peak = max(peak, block_peak)
                     square_sum += float(np.sum(np.square(data, dtype=np.float64)))
                     samples += data.size
+                    offset = 0
+                    while offset < len(data):
+                        index = min(1599, frames_read // bin_size)
+                        count = min(len(data) - offset, bin_size - frames_read % bin_size)
+                        value = min(1.0, float(np.abs(data[offset:offset + count]).max()))
+                        if index == len(peaks):
+                            peaks.append(value)
+                        else:
+                            peaks[index] = max(peaks[index], value)
+                        frames_read += count
+                        offset += count
             title = self.path.stem
             try:
                 tags = TinyTag.get(self.path)
@@ -359,6 +400,9 @@ class Window(QMainWindow):
         self.setWindowTitle(self.t('window_title'))
         self.resize(1180, 780)
         self.tracks, self.selected, self.jobs = [], [], []
+        self.pending_reads = {}
+        self.load_token, self.loading_playlist = 0, False
+        self.load_callback = None
         self.selected_keys, self.text_cache, self.availability = set(), {}, {}
         self.index, self.playlist, self.analyzer = -1, None, None
         self.save_job, self.pending_save = None, None
@@ -713,7 +757,7 @@ class Window(QMainWindow):
         self.title.updateGeometry()
 
     def show_manager(self):
-        if self.save_job or self.duplicate_job:
+        if self.save_job or self.duplicate_job or self.loading_playlist:
             self.statusBar().showMessage(self.t('save_in_progress'))
             return
         self.player.pause()
@@ -793,11 +837,15 @@ class Window(QMainWindow):
         if dialog.clickedButton() is new:
             self.new_playlist()
         elif dialog.clickedButton() is resume:
-            if self.load_playlist(session['path'], session) and restore_folder.isChecked():
+            restore = restore_folder.isChecked()
+            def loaded():
+                if not restore:
+                    return
                 if last_folder:
                     self.scan_folder(last_folder, resume_last_track=True)
                 else:
                     self.open_folder(resume_last_track=True)
+            self.load_playlist(session['path'], session, on_success=loaded)
 
     def change_language(self):
         self.lang = self.language_box.currentData()
@@ -872,6 +920,7 @@ class Window(QMainWindow):
         QMessageBox.warning(self, 'PartyPicker', str(message))
 
     def set_save_busy(self, busy):
+        busy = busy or self.loading_playlist
         for widget in (self.new_button, self.open_playlist_button, self.save_as_button,
                        self.text_only, self.add_button, self.up_button,
                        self.down_button, self.remove_button, self.undo_button):
@@ -886,7 +935,7 @@ class Window(QMainWindow):
         target = target or self.playlist
         if target is None:
             return False
-        if self.duplicate_job or (self.save_job and self.save_job.isRunning()):
+        if self.duplicate_job or self.pending_save is not None or self.loading_playlist:
             self.statusBar().showMessage(self.t('save_in_progress'))
             return False
         entries = list(entries)
@@ -994,21 +1043,32 @@ class Window(QMainWindow):
             return
         self.load_playlist(name)
 
-    def load_playlist(self, name, session=None):
-        try:
-            if Path(name).suffix.lower() == '.txt':
-                session = session or {}
-                entries = [Path(p) for p in session.get('entries', [])]
-                labels = session.get('labels', {})
-                expected = [labels[path_key(p)].replace('\r', ' ').replace('\n', ' ') for p in entries]
-                if Path(name).read_text(encoding='utf-8-sig').splitlines() != (expected or ['']):
-                    raise ValueError(self.t('txt_changed'))
-                self.text_cache.update(labels)
-            else:
-                entries = read_playlist(name)
-        except Exception as exc:
-            self.error(self.translate_core_error(str(exc)))
+    def load_playlist(self, name, session=None, on_success=None):
+        """Queue an import; True means accepted, not already loaded."""
+        if self._closing or self.pending_save is not None or self.duplicate_job:
             return False
+        self.load_token += 1
+        self.loading_playlist = True
+        self.load_callback = on_success
+        self.set_save_busy(True)
+        self.manager.setEnabled(False)
+        job = LoadPlaylist(self.load_token, name, session, self)
+        job.result.connect(self.playlist_loaded)
+        self.launch(job)
+        return True
+
+    @Slot(int, object, object, object, str)
+    def playlist_loaded(self, token, name, entries, labels, error):
+        if self._closing or token != self.load_token:
+            return
+        callback, self.load_callback = self.load_callback, None
+        self.loading_playlist = False
+        self.set_save_busy(False)
+        self.manager.setEnabled(True)
+        if error:
+            self.error(self.t('txt_changed') if error == 'txt_changed' else self.translate_core_error(error))
+            return
+        self.text_cache.update(labels)
         self.undo_stack.clear()
         self.undo_button.setEnabled(False)
         self.playlist, self.selected = Path(name), entries
@@ -1019,7 +1079,8 @@ class Window(QMainWindow):
         self.show_latest_pick()
         self.statusBar().showMessage(self.t('playlist_loaded'))
         self.check_files(entries)
-        return True
+        if callback:
+            callback()
 
     def add_pick_item(self, path):
         missing = self.availability.get(path_key(path)) is False
@@ -1090,6 +1151,18 @@ class Window(QMainWindow):
         return Path(url.toLocalFile()) if url.isLocalFile() else None
 
     def launch(self, job):
+        if isinstance(job, (Probe, Analyze, LoadPlaylist, Scan, CheckFiles)):
+            kind = type(job)
+            active = [j for j in self.jobs if type(j) is kind]
+            for previous in active:
+                previous.requestInterruption()
+            previous = self.pending_reads.pop(kind, None)
+            if previous is not None:
+                previous.requestInterruption()
+                previous.deleteLater()
+            if len(active) >= 2:
+                self.pending_reads[kind] = job
+                return
         self.jobs.append(job)
         job.finished.connect(self.job_finished)
         job.start()
@@ -1107,7 +1180,14 @@ class Window(QMainWindow):
             self.save_job = None
         if job in self.jobs:
             self.jobs.remove(job)
+        pending = self.pending_reads.pop(type(job), None)
         job.deleteLater()
+        if pending is not None:
+            if self._closing:
+                pending.requestInterruption()
+                pending.deleteLater()
+            else:
+                self.launch(pending)
 
     def open_folder(self, resume_last_track=False):
         if self.playlist is None:
@@ -1376,7 +1456,7 @@ class Window(QMainWindow):
         if self.playlist is None:
             self.new_playlist(lambda: self.add(advance))
             return
-        if self.duplicate_job or self.save_job:
+        if self.duplicate_job or self.save_job or self.loading_playlist:
             return
         if path_key(path) not in self.selected_keys:
             self.duplicate_job = Duplicates(path, self.selected, self.identity_cache, advance, self)
@@ -1396,6 +1476,7 @@ class Window(QMainWindow):
         self.set_save_busy(self.save_job is not None)
         if entries != self.selected or self.current_path() != path or self.save_job:
             return
+        token = self.play_token
         if duplicate:
             dialog = QMessageBox(self)
             dialog.setWindowTitle('PartyPicker')
@@ -1405,13 +1486,16 @@ class Window(QMainWindow):
             dialog.setDefaultButton(no)
             dialog.exec()
             if dialog.clickedButton() is not yes:
-                if advance:
+                if advance and token == self.play_token and self.current_path() == path:
                     self.step(1)
                 return
         if self.current_path() != path or entries != self.selected or self.save_job:
             return
+        def advance_if_current():
+            if token == self.play_token and self.current_path() == path:
+                self.step(1)
         self.commit(self.selected + [path], ui_change=('append', path),
-                    on_success=(lambda: self.step(1)) if advance else None)
+                    on_success=advance_if_current if advance else None)
 
     def undo(self, on_success=None):
         if not self.undo_stack or self.save_job or self.duplicate_job:
@@ -1545,6 +1629,14 @@ class Window(QMainWindow):
                 event.accept()
             return
         self._closing = True
+        self.load_token += 1
+        self.load_callback = None
+        for job in self.pending_reads.values():
+            if self.analyzer is job:
+                self.analyzer = None
+            job.requestInterruption()
+            job.deleteLater()
+        self.pending_reads.clear()
         self.source_fade.clear()
         self.pick_motion.finish()
         self.wave_fade.finish()

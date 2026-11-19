@@ -7,10 +7,10 @@ if errorlevel 1 goto missing
 py -3 -m venv .venv
 if errorlevel 1 goto error
 :run
-if exist ".venv\ready-v2" goto launch
+if exist ".venv\ready-security-20261119" goto launch
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 if errorlevel 1 goto error
-echo ready > .venv\ready-v2
+echo ready > .venv\ready-security-20261119
 :launch
 .venv\Scripts\python.exe party_picker.py
 if errorlevel 1 goto error

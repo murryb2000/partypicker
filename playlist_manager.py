@@ -647,9 +647,11 @@ class PlaylistManager(QWidget):
         if self.model.drag_rows is not None:
             return
         name, _ = QFileDialog.getOpenFileName(self, self.window.t('open_playlist_title'), '', self.window.t('open_playlist_filter'))
-        if name and self.window.load_playlist(name):
-            self.player.stop()
-            self.reload()
+        if name:
+            def loaded():
+                self.player.stop()
+                self.reload()
+            self.window.load_playlist(name, on_success=loaded)
 
     def reorder(self, entries):
         if self.window.commit(entries, ui_change=('full',), on_success=self.reload):

@@ -11,6 +11,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: partypicker-windows-release
+  cancel-in-progress: false
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -33,7 +37,7 @@ jobs:
       - name: Regressionstests
         env:
           QT_QPA_PLATFORM: windows
-        run: python -m unittest -v test_party_picker test_manager test_visuals test_responsiveness test_layout test_drag_scroll
+        run: python -m unittest -v test_party_picker test_manager test_visuals test_responsiveness test_layout test_drag_scroll test_safety
 
       - name: PartyPicker.exe bauen
         run: >-
@@ -75,6 +79,22 @@ jobs:
         run: |
           $releaseVersion = (Get-Content VERSION -Raw).Trim()
           "version=$releaseVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Release-Tag auf geprüften Build setzen
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $tag = "v$env:RELEASE_VERSION"
+          $ref = "repos/$env:GITHUB_REPOSITORY/git/refs/tags/$tag"
+          gh api $ref --silent 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh api --method PATCH $ref -f sha="$env:GITHUB_SHA" -F force=true --silent
+          } else {
+            gh api --method POST "repos/$env:GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$env:GITHUB_SHA" --silent
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Release-Tag konnte nicht aktualisiert werden." }
 
       - name: GitHub-Release erstellen
         uses: softprops/action-gh-release@v2
