@@ -636,6 +636,9 @@ class Window(QMainWindow):
         self.quit_action.triggered.connect(self.close)
         self.addToolBar(Qt.TopToolBarArea, self.fullscreen_controls)
         self.fullscreen_controls.hide()
+        self.fullscreen_controls_sync = QTimer(self)
+        self.fullscreen_controls_sync.setSingleShot(True)
+        self.fullscreen_controls_sync.timeout.connect(self.update_fullscreen_controls)
         self.fullscreen_was_maximized = True
         # Keep these separate from the picker-only shortcuts disabled in the manager.
         self.fullscreen_shortcut = QShortcut(QKeySequence('F11'), self)
@@ -672,8 +675,12 @@ class Window(QMainWindow):
 
     def changeEvent(self, event):
         super().changeEvent(event)
-        if event.type() == QEvent.WindowStateChange and hasattr(self, 'fullscreen_controls'):
-            self.fullscreen_controls.setVisible(self.isFullScreen())
+        if event.type() == QEvent.WindowStateChange and hasattr(self, 'fullscreen_controls_sync'):
+            # Let the native Windows state transition complete before relayout.
+            self.fullscreen_controls_sync.start(0)
+
+    def update_fullscreen_controls(self):
+        self.fullscreen_controls.setVisible(self.isFullScreen())
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

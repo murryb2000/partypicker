@@ -402,13 +402,13 @@ class PartyPickerTests(unittest.TestCase):
             if manager:
                 self.w.show_manager(); APP.processEvents()
             toolbar = self.w.fullscreen_controls
-            self.assertTrue(toolbar.isVisible())
+            wait_for(toolbar.isVisible)
             self.assertLess(toolbar.mapTo(self.w, QPoint()).y(), 10)
             button = toolbar.widgetForAction(self.w.windowed_action)
             self.assertTrue(button.isVisible())
             QTest.mouseClick(button, Qt.LeftButton); APP.processEvents()
             self.assertFalse(self.w.isFullScreen())
-            self.assertTrue(toolbar.isHidden())
+            wait_for(toolbar.isHidden)
             self.w.toggle_fullscreen(); APP.processEvents()
         self.w.language_box.setCurrentIndex(1)
         self.assertEqual(self.w.windowed_action.text(), 'Windowed view [F11]')
