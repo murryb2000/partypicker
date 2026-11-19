@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.7 – 2026-11-19
+
+- Vorhörfenster: Der aktuelle Titel bleibt beim Titelwechsel in der vierten sichtbaren Zeile, mit drei vorherigen Titeln darüber. Am Ordneranfang und -ende wird die Position an die verfügbaren Einträge angepasst.
+- Gilt auch beim Fortsetzen des letzten Musikordners sowie beim Vor- und Zurückspringen.
+
 ## 2.1.6 – 2026-11-19
 
 - Vollbild-Steuerung oben links mit „Fensteransicht [F11]“ und „Beenden“, auch im Playlist-Manager.

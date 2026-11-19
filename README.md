@@ -1,8 +1,10 @@
 # PARTYPICKER / Der Playlist-Generator
 
+Der aktuelle Titel im Musikordner bleibt möglichst in der vierten sichtbaren Zeile, mit drei vorherigen Titeln darüber.
+
 Lokale Desktop-App zum Durchhören von FLAC- und MP3-Sammlungen und Zusammenstellen einer Party-Playlist. Python mit PySide6 ermöglicht direkte Dateizugriffe und Speichern ohne Browser-Berechtigungsdialoge. Wiedergabe über Qt Multimedia; Waveform aus den echten Audiodaten über SoundFile. TinyTag liest Artist-, Titel- und vorhandene BPM-Metadaten. Keine Musik-Uploads.
 
-## Neu in Version 2.1.6
+## Neu in Version 2.1.7
 
 Im Vollbild findest du oben links „Fensteransicht [F11]“ zum Anzeigen der Windows-Leisten und „Beenden“ zum Schließen von PartyPicker. Beide Buttons sind auch im Playlist-Manager erreichbar. F11 und Esc funktionieren weiterhin; die zuletzt gewählte Ansicht wird gespeichert.
 

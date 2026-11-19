@@ -1179,7 +1179,7 @@ class Window(QMainWindow):
             self.sources.setCurrentItem(item)
             # Selecting the restored last-played track is not enough when it is
             # far down a large folder; reveal it before playback starts.
-            self.sources.scrollToItem(item)
+            self.position_source_track()
             # Persist before the asynchronous probe/audio startup so a quick
             # exit still resumes at the selected track.
             self.settings.setValue('last_music_track', str(self.tracks[index]))
@@ -1188,6 +1188,12 @@ class Window(QMainWindow):
         elif index >= len(self.tracks) and self.tracks:
             self.player.stop()
             self.statusBar().showMessage(self.t('folder_finished'))
+
+    def position_source_track(self):
+        """Keep three preceding tracks above the current folder track."""
+        if 0 <= self.index < self.sources.count():
+            anchor = self.sources.item(max(0, self.index - 3))
+            self.sources.scrollToItem(anchor, QListWidget.PositionAtTop)
 
     def play_path(self, path, folder_track=False):
         if self.analyzer and self.analyzer.isRunning():
