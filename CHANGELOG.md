@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.8 – 2026-11-19
+
+- Farbüberblendungen im Vorhörfenster dauern jetzt 440 statt 220 Millisekunden und laufen damit halb so schnell. Timer-Intervall und Begrenzung auf sichtbare Titel bleiben erhalten.
+
 ## 2.1.7 – 2026-11-19
 
 - Vorhörfenster: Der aktuelle Titel bleibt beim Titelwechsel in der vierten sichtbaren Zeile, mit drei vorherigen Titeln darüber. Am Ordneranfang und -ende wird die Position an die verfügbaren Einträge angepasst.

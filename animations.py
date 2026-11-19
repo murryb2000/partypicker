@@ -146,7 +146,7 @@ class ColorFadeDelegate(QStyledItemDelegate):
         transition = self.transitions.get(QPersistentModelIndex(index))
         if transition:
             start, target, since = transition
-            p = min(1.0, (time.monotonic() - since) / .22)
+            p = min(1.0, (time.monotonic() - since) / .44)
             return QColor.fromRgbF(*(start.getRgbF()[i] + (target.getRgbF()[i]-start.getRgbF()[i])*p for i in range(4)))
         color = index.data(Qt.ForegroundRole)
         return color.color() if color else self.view.palette().color(QPalette.Text)
@@ -180,7 +180,7 @@ class ColorFadeDelegate(QStyledItemDelegate):
 
     def tick(self):
         now = time.monotonic()
-        self.transitions = {i: t for i, t in self.transitions.items() if i.isValid() and now-t[2] < .22}
+        self.transitions = {i: t for i, t in self.transitions.items() if i.isValid() and now-t[2] < .44}
         self.view.viewport().update()
         if not self.transitions:
             self.timer.stop()
