@@ -1,5 +1,9 @@
 # PARTYPICKER / Der Playlist-Generator
 
+## Neu in Version 2.2.4
+
+PartyPicker startet immer im Vollbild. Oben rechts in der vorhandenen Kopfzeile stehen die Symbole für Wiederherstellen und Schließen, auch im Playlist-Manager. Wiederherstellen zeigt die Windows-Titelleiste und Taskleiste. F11 wechselt die Ansicht; Esc verlässt das Vollbild oder bricht beim Ziehen nur den Ziehvorgang ab.
+
 ## Neu in Version 2.2.3
 
 Im Ordnerfenster ist Platz für fünf vollständige Titelzeilen. Der aktuelle Titel steht möglichst in der dritten sichtbaren Zeile.
@@ -21,17 +25,13 @@ Die Playlist-Dauer wird als Stunden:Minuten:Sekunden angezeigt. Im Manager steht
 Vor dem Überschreiben bleiben bis zu DREI frühere Stände direkt neben der Playlist erhalten. Sicherungsnamen enthalten .backup-, Datum/Uhrzeit (UTC) und eine Kennung; die Dateiendung bleibt erhalten. Gleiche Inhalte erzeugen keine zusätzliche Sicherung. Schlägt die Sicherung fehl, bleibt die bisherige Playlist unverändert.
 M3U/M3U8 wiederherstellen: Sicherung über Playlist öffnen laden, anschließend mit Speichern unter auf den gewünschten Playlist-Namen speichern. TXT-Sicherungen enthalten die frühere reine Titelliste. Musikdateien werden nicht kopiert. Die Sicherungen bleiben auch nach einem Neustart erhalten.
 
-Der aktuelle Titel im Musikordner bleibt möglichst in der vierten sichtbaren Zeile, mit drei vorherigen Titeln darüber.
+
 
 Lokale Desktop-App zum Durchhören von FLAC- und MP3-Sammlungen und Zusammenstellen einer Party-Playlist. Python mit PySide6 ermöglicht direkte Dateizugriffe und Speichern ohne Browser-Berechtigungsdialoge. Wiedergabe über Qt Multimedia; Waveform aus den echten Audiodaten über SoundFile. TinyTag liest Artist-, Titel- und vorhandene BPM-Metadaten. Keine Musik-Uploads.
 
 ## Neu in Version 2.1.8
 
-Im Vollbild findest du oben links „Fensteransicht [F11]“ zum Anzeigen der Windows-Leisten und „Beenden“ zum Schließen von PartyPicker. Beide Buttons sind auch im Playlist-Manager erreichbar. F11 und Esc funktionieren weiterhin; die zuletzt gewählte Ansicht wird gespeichert.
 
-## Neu in Version 2.1.5
-
-PartyPicker startet standardmäßig im echten Vollbild ohne Windows-Titelleiste und Taskleiste. Mit F11 wechselst du zwischen Vollbild und Fensteransicht; Esc verlässt das Vollbild. Beim Ziehen von Titeln bricht Esc nur das Verschieben ab. Die zuletzt gewählte Ansicht wird beim nächsten Start wiederhergestellt. Die Kürzel funktionieren in PartyPicker und im Playlist-Manager.
 
 ## Neu in Version 2.1.4
 

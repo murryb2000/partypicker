@@ -1,5 +1,5 @@
 PARTYPICKER / The Playlist Generator
-by MurryB · Version 2.2.3
+by MurryB · Version 2.2.4
 
 NEW IN VERSION 2.2.3
 The folder list has room for five full rows. The current track is positioned in the third visible row where possible.
@@ -195,7 +195,7 @@ Fixed screen-edge scrolling while dragging in the playlist manager on Windows: s
 While dragging in the playlist manager, a small red no-entry sign indicates that tracks cannot be dropped outside the two playlist columns. The hand cursor returns over either column.
 
 
-Fullscreen: PartyPicker starts in fullscreen by default, without the Windows title bar or taskbar. F11 toggles fullscreen and windowed mode; Esc leaves fullscreen. While dragging tracks, Esc only cancels the drag. The last chosen mode is remembered. Works in both interfaces.
+PartyPicker always starts in fullscreen. The existing header shows restore and close icons at the top right, including in the playlist manager. Restore brings back the Windows title bar and taskbar. F11 toggles the view; Esc leaves fullscreen or cancels an active drag.
 
 
-At the top left in fullscreen: “Windowed view [F11]” restores the Windows title bar and taskbar. “Quit” closes PartyPicker and allows pending saves to finish. Both buttons are also available in the playlist manager.
+

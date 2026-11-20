@@ -6,12 +6,12 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 from tinytag import TinyTag
-from PySide6.QtCore import Qt, QUrl, QThread, Signal, Slot, QTimer, QSettings, QEvent
+from PySide6.QtCore import Qt, QUrl, QThread, Signal, Slot, QTimer, QSettings, QEvent, QSize
 from PySide6.QtGui import (QColor, QDesktopServices, QIcon, QPainter, QPen,
                            QShortcut, QKeySequence, QPixmap)
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QGridLayout, QPushButton, QLabel, QListWidget, QFileDialog, QMessageBox,
-    QSplitter, QCheckBox, QSlider, QComboBox, QSpinBox, QStackedWidget, QToolBar)
+    QSplitter, QCheckBox, QSlider, QComboBox, QSpinBox, QStackedWidget, QToolButton, QStyle)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from playlist_manager import PlaylistManager
 from animations import RowMotion, ColorFadeDelegate, WaveCrossfade
@@ -29,7 +29,7 @@ TEXTS = {
         'window_title': 'PARTYPICKER / Der Playlist-Generator',
         'subtitle': 'Der Playlist-Generator',
         'language': 'Sprache:',
-        'windowed_view': 'Fensteransicht [F11]', 'exit_app': 'Beenden',
+        'windowed_view': 'Wiederherstellen (F11)', 'exit_app': 'Schließen',
         'fullscreen_keys': 'F11: Vollbild umschalten · Esc: Vollbild verlassen',
         'new_playlist': 'Neue Playlist …', 'text_only': 'Nur TXT-Datei',
         'text_only_tip': 'Speichert eine reine Titelliste im Format Artist - Titel',
@@ -80,7 +80,7 @@ TEXTS = {
         'window_title': 'PARTYPICKER / The Playlist Generator',
         'subtitle': 'The Playlist Generator',
         'language': 'Language:',
-        'windowed_view': 'Windowed view [F11]', 'exit_app': 'Quit',
+        'windowed_view': 'Restore (F11)', 'exit_app': 'Close',
         'fullscreen_keys': 'F11: toggle fullscreen · Esc: leave fullscreen',
         'new_playlist': 'New playlist …', 'text_only': 'TXT file only',
         'text_only_tip': 'Saves a plain track list in Artist - Title format',
@@ -646,12 +646,12 @@ class Window(QMainWindow):
         for label, widget in [(self.t('folder_heading'), self.sources), (self.t('playlist_heading'), self.picks)]:
             pane = QWidget()
             box = QVBoxLayout(pane)
-            pane_label = QLabel(label)
+            pane_label = ElidedLabel(label) if widget is self.sources else QLabel(label)
             self.pane_labels.append(pane_label)
             if widget is self.sources:
                 heading = QHBoxLayout()
-                heading.addWidget(pane_label)
-                heading.addStretch()
+                heading.addWidget(pane_label, 1)
+                self.folder_header_layout = heading
                 self.status_filter_label = QLabel(self.t('status_filter'))
                 heading.addWidget(self.status_filter_label)
                 self.status_filter = QComboBox()
@@ -733,22 +733,9 @@ class Window(QMainWindow):
         self.statusBar().showMessage(self.t('ready'))
         self.manager = PlaylistManager(self)
         self.pages.addWidget(self.manager)
-        self.fullscreen_controls = QToolBar(self)
-        self.fullscreen_controls.setMovable(False)
-        self.fullscreen_controls.setFloatable(False)
-        self.fullscreen_controls.setAllowedAreas(Qt.TopToolBarArea)
-        self.fullscreen_controls.setContextMenuPolicy(Qt.PreventContextMenu)
-        self.fullscreen_controls.setStyleSheet(
-            'QToolBar { border:0; spacing:5px; padding:3px 6px; } '
-            'QToolButton { background:#293d53; color:#e8eef5; padding:4px 10px; '
-            'border:1px solid #425970; border-radius:4px; } '
-            'QToolButton:hover { background:#385570; }')
-        self.windowed_action = self.fullscreen_controls.addAction(self.t('windowed_view'))
-        self.windowed_action.triggered.connect(self.leave_fullscreen)
-        self.quit_action = self.fullscreen_controls.addAction(self.t('exit_app'))
-        self.quit_action.triggered.connect(self.close)
-        self.addToolBar(Qt.TopToolBarArea, self.fullscreen_controls)
-        self.fullscreen_controls.hide()
+        self.fullscreen_controls = []
+        self.add_window_controls(self.folder_header_layout)
+        self.add_window_controls(self.manager.header_layout)
         self.fullscreen_controls_sync = QTimer(self)
         self.fullscreen_controls_sync.setSingleShot(True)
         self.fullscreen_controls_sync.timeout.connect(self.update_fullscreen_controls)
@@ -762,12 +749,37 @@ class Window(QMainWindow):
         self.fullscreen_escape.activated.connect(self.leave_fullscreen)
         self.apply_compact_layout()
 
+    def add_window_controls(self, heading):
+        controls = QWidget()
+        row = QHBoxLayout(controls)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(2)
+        restore, close = QToolButton(), QToolButton()
+        for button, symbol, callback, label in (
+            (restore, QStyle.SP_TitleBarNormalButton, self.leave_fullscreen, 'windowed_view'),
+            (close, QStyle.SP_TitleBarCloseButton, self.close, 'exit_app'),
+        ):
+            button.setIcon(self.style().standardIcon(symbol))
+            button.setIconSize(QSize(14, 14))
+            button.setFixedSize(30, 24)
+            button.setAccessibleName(self.t(label))
+            button.setToolTip(self.t(label))
+            button.clicked.connect(callback)
+            row.addWidget(button)
+        controls.setStyleSheet(
+            'QToolButton { background:transparent; border:0; border-radius:4px; } '
+            'QToolButton:hover, QToolButton:focus { background:#385570; } '
+            'QToolButton#windowClose:hover { background:#c42b1c; }')
+        close.setObjectName('windowClose')
+        policy = controls.sizePolicy()
+        policy.setRetainSizeWhenHidden(True)
+        controls.setSizePolicy(policy)
+        controls.hide()
+        heading.addWidget(controls)
+        self.fullscreen_controls.append((controls, restore, close))
+
     def show_startup_window(self):
-        # Existing installations have no setting yet and also start in fullscreen.
-        if self.settings.value('fullscreen', True, type=bool):
-            self.showFullScreen()
-        else:
-            self.showMaximized()
+        self.showFullScreen()
 
     def toggle_fullscreen(self):
         if self.isFullScreen():
@@ -775,7 +787,6 @@ class Window(QMainWindow):
         else:
             self.fullscreen_was_maximized = self.isMaximized()
             self.showFullScreen()
-            self.settings.setValue('fullscreen', True)
 
     def leave_fullscreen(self):
         if not self.isFullScreen() or self.manager.model.drag_rows is not None:
@@ -784,7 +795,6 @@ class Window(QMainWindow):
             self.showMaximized()
         else:
             self.showNormal()
-        self.settings.setValue('fullscreen', False)
 
     def changeEvent(self, event):
         super().changeEvent(event)
@@ -793,7 +803,8 @@ class Window(QMainWindow):
             self.fullscreen_controls_sync.start(0)
 
     def update_fullscreen_controls(self):
-        self.fullscreen_controls.setVisible(self.isFullScreen())
+        for controls, _, _ in self.fullscreen_controls:
+            controls.setVisible(self.isFullScreen())
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -922,9 +933,10 @@ class Window(QMainWindow):
         self.retranslate_ui()
 
     def retranslate_ui(self):
-        if hasattr(self, 'fullscreen_controls'):
-            self.windowed_action.setText(self.t('windowed_view'))
-            self.quit_action.setText(self.t('exit_app'))
+        for _, restore, close in getattr(self, 'fullscreen_controls', ()):
+            for button, label in ((restore, 'windowed_view'), (close, 'exit_app')):
+                button.setAccessibleName(self.t(label))
+                button.setToolTip(self.t(label))
         if hasattr(self, 'manager'):
             self.manager.retranslate()
         self.setWindowTitle(self.t('window_title'))

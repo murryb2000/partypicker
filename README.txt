@@ -1,5 +1,5 @@
 PARTYPICKER / Der Playlist-Generator
-by MurryB · Version 2.2.3
+by MurryB · Version 2.2.4
 
 NEU IN VERSION 2.2.3
 Im Ordnerfenster ist Platz für fünf vollständige Titelzeilen. Der aktuelle Titel steht möglichst in der dritten sichtbaren Zeile.
@@ -215,7 +215,7 @@ Beim Ziehen im Playlist-Manager ist das Bildschirmrand-Scrollen unter Windows ko
 Beim Ziehen im Playlist-Manager zeigt ein rotes Einfahrt-verboten-Schild außerhalb der beiden Playlist-Spalten an, dass dort nicht abgelegt werden kann. Innerhalb der Spalten erscheint wieder die Hand.
 
 
-Vollbild: PartyPicker startet standardmäßig ohne Windows-Titelleiste und Taskleiste. F11 schaltet zwischen Vollbild und Fensteransicht um; Esc verlässt das Vollbild. Beim Ziehen von Titeln bricht Esc nur den Ziehvorgang ab. Die zuletzt gewählte Ansicht wird gespeichert. Gilt für beide Oberflächen.
+PartyPicker startet immer im Vollbild. Oben rechts in der vorhandenen Kopfzeile stehen die Symbole für Wiederherstellen und Schließen, auch im Playlist-Manager. Wiederherstellen zeigt die Windows-Titelleiste und Taskleiste. F11 wechselt die Ansicht; Esc verlässt das Vollbild oder bricht beim Ziehen nur den Ziehvorgang ab.
 
 
-Im Vollbild oben links: „Fensteransicht [F11]“ zeigt die Windows-Leisten wieder an. „Beenden“ schließt PartyPicker und lässt laufende Speichervorgänge abschließen. Beide Buttons sind auch im Playlist-Manager verfügbar.
+

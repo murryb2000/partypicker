@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.4 – 2026-11-20
+
+- App startet immer im Vollbild.
+- Symbole für Wiederherstellen und Schließen oben rechts in beiden Oberflächen. Die separate Leiste entfällt.
+
 ## 2.2.3 – 2026-11-20
 
 - Das Ordnerfenster bietet Platz für mindestens fünf vollständige Titelzeilen, auch bei sichtbarer horizontaler Scrollleiste.

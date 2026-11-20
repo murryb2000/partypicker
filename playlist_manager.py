@@ -440,6 +440,7 @@ class PlaylistManager(QWidget):
         self.player.errorOccurred.connect(lambda *args: self.status.setText(self.player.errorString()))
         layout = QVBoxLayout(self)
         bar = QHBoxLayout()
+        self.header_layout = bar
         self.back = QPushButton()
         self.back.clicked.connect(window.show_picker)
         self.open = QPushButton()

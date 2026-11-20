@@ -368,21 +368,12 @@ class PartyPickerTests(unittest.TestCase):
         self.assertEqual(calls, [1])
         self.assertEqual(self.w.history[path_key(self.a)], 'skipped')
 
-    def test_fullscreen_default_and_remembered_choice(self):
+    def test_fullscreen_start_ignores_old_windowed_setting(self):
+        self.w.settings.setValue('fullscreen', False)
         self.w.show_startup_window(); APP.processEvents()
         self.assertTrue(self.w.isFullScreen())
         self.w.leave_fullscreen(); APP.processEvents()
-        self.assertFalse(self.w.isFullScreen())
         self.assertTrue(self.w.isMaximized())
-        self.assertFalse(self.w.settings.value('fullscreen', True, type=bool))
-        other = Window()
-        try:
-            other.show_startup_window(); APP.processEvents()
-            self.assertFalse(other.isFullScreen())
-            self.assertTrue(other.isMaximized())
-        finally:
-            other.close(); APP.processEvents()
-        self.w.toggle_fullscreen(); APP.processEvents()
         other = Window()
         try:
             other.show_startup_window(); APP.processEvents()
@@ -414,22 +405,27 @@ class PartyPickerTests(unittest.TestCase):
         from PySide6.QtCore import Qt, QPoint
         from PySide6.QtTest import QTest
         self.w.show_startup_window(); APP.processEvents()
-        for manager in (False, True):
-            if manager:
+        from PySide6.QtWidgets import QToolBar
+        self.assertFalse(self.w.findChildren(QToolBar))
+        for page, (controls, restore, close) in enumerate(self.w.fullscreen_controls):
+            if page:
                 self.w.show_manager(); APP.processEvents()
-            toolbar = self.w.fullscreen_controls
-            wait_for(toolbar.isVisible)
-            self.assertLess(toolbar.mapTo(self.w, QPoint()).y(), 10)
-            button = toolbar.widgetForAction(self.w.windowed_action)
-            self.assertTrue(button.isVisible())
-            QTest.mouseClick(button, Qt.LeftButton); APP.processEvents()
-            self.assertFalse(self.w.isFullScreen())
-            wait_for(toolbar.isHidden)
+            wait_for(controls.isVisible)
+            self.assertLess(controls.mapTo(self.w, QPoint()).y(), 40)
+            edge = close.mapTo(self.w, QPoint(close.width(), 0)).x()
+            self.assertLessEqual(self.w.width() - edge, 30)
+            self.assertLess(restore.x(), close.x())
+            self.assertTrue(all(not button.icon().isNull() and not button.text()
+                                for button in (restore, close)))
+            QTest.mouseClick(restore, Qt.LeftButton); APP.processEvents()
+            wait_for(lambda: not self.w.isFullScreen())
+            wait_for(controls.isHidden)
             self.w.toggle_fullscreen(); APP.processEvents()
         self.w.language_box.setCurrentIndex(1)
-        self.assertEqual(self.w.windowed_action.text(), 'Windowed view [F11]')
-        self.assertEqual(self.w.quit_action.text(), 'Quit')
-        QTest.mouseClick(self.w.fullscreen_controls.widgetForAction(self.w.quit_action), Qt.LeftButton)
+        self.assertEqual(restore.accessibleName(), 'Restore (F11)')
+        self.assertEqual(close.toolTip(), 'Close')
+        wait_for(close.isVisible)
+        QTest.mouseClick(close, Qt.LeftButton)
         wait_for(lambda: not self.w.isVisible())
 
     def test_translations_and_shortcuts(self):
