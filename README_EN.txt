@@ -1,5 +1,7 @@
 PARTYPICKER / The Playlist Generator
-by MurryB · Version 2.2.4
+by MurryB · Version 2.2.5
+
+In the playlist manager, use Play/Pause or Space to preview one selected track. Preview from sets the starting point in seconds. Enable Auto preview via the checkbox or Caps Lock, then press Play to follow your selection. Selecting multiple tracks pauses playback until a single track is selected. Press Pause to suspend automatic preview.
 
 NEW IN VERSION 2.2.3
 The folder list has room for five full rows. The current track is positioned in the third visible row where possible.

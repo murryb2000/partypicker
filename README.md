@@ -1,5 +1,9 @@
 # PARTYPICKER / Der Playlist-Generator
 
+## Neu in Version 2.2.5
+
+Im Playlist-Manager kannst du einen markierten Titel mit Play/Pause oder der Leertaste vorhören. „Vorhören ab“ legt den Startpunkt in Sekunden fest. Mit Caps Lock oder dem Haken „Automatisch vorhören“ folgt die Wiedergabe nach dem ersten Play-Klick der Auswahl. Eine Mehrfachauswahl pausiert, ein einzelner neu markierter Titel startet automatisch. Mit Pause hältst du die Automatik an.
+
 ## Neu in Version 2.2.4
 
 PartyPicker startet immer im Vollbild. Oben rechts in der vorhandenen Kopfzeile stehen die Symbole für Wiederherstellen und Schließen, auch im Playlist-Manager. Wiederherstellen zeigt die Windows-Titelleiste und Taskleiste. F11 wechselt die Ansicht; Esc verlässt das Vollbild oder bricht beim Ziehen nur den Ziehvorgang ab.

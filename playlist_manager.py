@@ -1,11 +1,11 @@
 import json
 import time
 from pathlib import Path
-from PySide6.QtCore import Qt, QAbstractListModel, QModelIndex, QMimeData, QItemSelectionModel, Signal, Slot, QUrl, QSize, QTimer
+from PySide6.QtCore import Qt, QAbstractListModel, QModelIndex, QMimeData, QItemSelectionModel, Signal, Slot, QUrl, QSize, QTimer, QEvent
 from PySide6.QtGui import QKeySequence, QShortcut, QPixmap, QPainter, QColor, QPen, QCursor, QGuiApplication
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
                                QListView, QAbstractItemView, QFileDialog, QScrollBar, QStyledItemDelegate,
-                               QCheckBox, QMessageBox)
+                               QCheckBox, QMessageBox, QSpinBox)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from tinytag import TinyTag
 from animations import RowMotion
@@ -13,6 +13,7 @@ from background_jobs import ReadJob
 from drag_scroll import edge_position
 from internal_drag import InternalDrag
 from responsive_widgets import ElidedLabel
+from core import preview_position
 
 MIME = 'application/x-partypicker-rows'
 
@@ -437,7 +438,17 @@ class PlaylistManager(QWidget):
         self.audio = QAudioOutput(self)
         self.player = QMediaPlayer(self)
         self.player.setAudioOutput(self.audio)
-        self.player.errorOccurred.connect(lambda *args: self.status.setText(self.player.errorString()))
+        self.preview_armed = False
+        self.preview_seek = None
+        self.preview_seek_timer = QTimer(self)
+        self.preview_seek_timer.setInterval(50)
+        self.preview_seek_timer.timeout.connect(self.apply_preview_seek)
+        self.preview_selection_timer = QTimer(self)
+        self.preview_selection_timer.setSingleShot(True)
+        self.preview_selection_timer.setInterval(100)
+        self.preview_selection_timer.timeout.connect(self.preview_selection)
+        self.player.errorOccurred.connect(self.preview_failed)
+        self.player.playbackStateChanged.connect(self.refresh_preview_button)
         layout = QVBoxLayout(self)
         bar = QHBoxLayout()
         self.header_layout = bar
@@ -466,6 +477,27 @@ class PlaylistManager(QWidget):
         duration_bar.addWidget(self.total_duration, 1)
         duration_bar.addWidget(self.selection_duration, 1)
         layout.addLayout(duration_bar)
+        audition = QHBoxLayout()
+        self.preview_button = QPushButton()
+        self.preview_button.clicked.connect(self.preview)
+        audition.addWidget(self.preview_button)
+        self.preview_start_label = QLabel()
+        audition.addWidget(self.preview_start_label)
+        self.preview_seconds = QSpinBox()
+        self.preview_seconds.setRange(0, 600)
+        self.preview_seconds.setSuffix(' s')
+        settings = getattr(window, 'settings', None)
+        if settings is not None:
+            self.preview_seconds.setValue(settings.value('manager_preview_seconds', 0, type=int))
+            self.preview_seconds.valueChanged.connect(
+                lambda value: settings.setValue('manager_preview_seconds', value))
+        self.preview_start_label.setBuddy(self.preview_seconds)
+        audition.addWidget(self.preview_seconds)
+        self.preview_auto = QCheckBox()
+        self.preview_auto.toggled.connect(self.preview_auto_changed)
+        audition.addWidget(self.preview_auto)
+        audition.addStretch()
+        layout.addLayout(audition)
         panes = QHBoxLayout()
         self.scroll = QScrollBar(Qt.Vertical)
         self.capacity = 1
@@ -473,6 +505,7 @@ class PlaylistManager(QWidget):
         self.views = [PlaylistView(), PlaylistView()]
         self.selection = QItemSelectionModel(self.model, self)
         self.selection.selectionChanged.connect(self.refresh_duration_summary)
+        self.selection.selectionChanged.connect(self.preview_selection_changed)
         for view in self.views:
             view.manager = self
             view.setModel(self.model)
@@ -512,16 +545,29 @@ class PlaylistManager(QWidget):
         self.drag_generation = 0
         self.model.modelReset.connect(self.reset_pages)
         self.model.modelReset.connect(self.refresh_duration_summary)
+        self.model.modelReset.connect(self.refresh_preview_button)
         self.status = QLabel()
         layout.addWidget(self.status)
         self.space = QShortcut(QKeySequence('Space'), self)
         self.space.setContext(Qt.WidgetWithChildrenShortcut)
+        self.space.setAutoRepeat(False)
         self.space.activated.connect(self.preview)
+        for widget in [self, *self.findChildren(QWidget)]:
+            widget.installEventFilter(self)
         self.undo_shortcut = QShortcut(QKeySequence('Ctrl+Z'), self)
         self.undo_shortcut.setContext(Qt.WidgetWithChildrenShortcut)
         self.undo_shortcut.activated.connect(self.undo)
         self.retranslate()
         self.refresh_undo()
+
+    def eventFilter(self, watched, event):
+        if (event.type() in (QEvent.ShortcutOverride, QEvent.KeyPress)
+                and event.key() == Qt.Key_CapsLock and self.isVisible() and self.isEnabled()):
+            event.accept()
+            if event.type() == QEvent.KeyPress and not event.isAutoRepeat():
+                self.preview_auto.toggle()
+            return True
+        return super().eventFilter(watched, event)
 
     def undo(self):
         if self.model.drag_rows is not None:
@@ -585,8 +631,7 @@ class PlaylistManager(QWidget):
         removed = {str(before[row]) for row in rows} - {str(path) for path in updated}
         def done():
             if self.player.source().toLocalFile() in removed:
-                self.player.stop()
-                self.player.setSource(QUrl())
+                self.clear_preview()
             self.reload()
         if self.window.commit(updated, ui_change=('full',), on_success=done):
             self.setEnabled(False)
@@ -607,7 +652,13 @@ class PlaylistManager(QWidget):
         self.open.setText('Playlist öffnen …' if de else 'Open playlist …')
         self.current.setText('Aktuelle Playlist übernehmen' if de else 'Use current playlist')
         self.heading.setText('PLAYLIST-MANAGER · Links beginnt die Liste · rechts geht sie weiter' if de else 'PLAYLIST MANAGER · Playlist continues from left to right')
-        self.status.setText('Strg + Ziehen: markieren · Auswahl ziehen: verschieben · Leertaste: vorhören' if de else 'Ctrl + drag: select · Drag selection to reorder · Space: preview')
+        self.status.setText('Strg + Ziehen: markieren · Auswahl ziehen: verschieben · Leertaste: Play/Pause' if de else 'Ctrl + drag: select · Drag selection to reorder · Space: Play/Pause')
+        self.preview_start_label.setText('Vorhören ab:' if de else 'Preview from:')
+        self.preview_auto.setText('Automatisch vorhören [Caps Lock]' if de else 'Auto preview [Caps Lock]')
+        self.preview_auto.setToolTip(
+            'Nach Play startet jeder neu markierte Einzeltitel. Pause hält die Automatik an.'
+            if de else 'After Play, selecting one track starts it automatically. Pause suspends auto preview.')
+        self.refresh_preview_button()
         self.refresh_duration_summary()
 
     def refresh_duration_summary(self, *args):
@@ -624,6 +675,7 @@ class PlaylistManager(QWidget):
         self.selection_duration.setText(self.window.t('selection_duration', count=len(selected), duration=self.window.duration_display(selected)))
 
     def begin_drag(self, rows):
+        self.preview_selection_timer.stop()
         self.drag_generation += 1
         generation = self.drag_generation
         before = self.motion.capture()
@@ -704,6 +756,7 @@ class PlaylistManager(QWidget):
     def reload(self):
         if self.model.drag_rows is not None:
             return
+        self.preview_selection_timer.stop()
         self.drag_generation += 1
         self.refresh_undo()
         for job in self.metadata_jobs:
@@ -712,7 +765,8 @@ class PlaylistManager(QWidget):
         self.model.reset_entries(self.window.selected)
         self.window.request_durations()
         self.refresh_duration_summary()
-        self.audio.setVolume(self.window.user_volume)
+        if self.preview_seek is None:
+            self.audio.setVolume(self.window.user_volume)
         self.pending_metadata = [p for p in self.window.selected if str(p) not in self.model.labels]
         self.metadata_active = True
         self.start_metadata()
@@ -749,7 +803,7 @@ class PlaylistManager(QWidget):
         name, _ = QFileDialog.getOpenFileName(self, self.window.t('open_playlist_title'), '', self.window.t('open_playlist_filter'))
         if name:
             def loaded():
-                self.player.stop()
+                self.clear_preview()
                 self.reload()
             self.window.load_playlist(name, on_success=loaded)
 
@@ -759,30 +813,141 @@ class PlaylistManager(QWidget):
         else:
             self.reload()
 
-    def preview(self):
-        if self.model.drag_rows is not None:
-            return
+    def selected_preview_url(self):
+        if self.model.projection is not None:
+            return None
         rows = self.selection.selectedRows()
-        if len(rows) != 1:
+        if len(rows) == 1 and 0 <= rows[0].row() < len(self.model.entries):
+            return QUrl.fromLocalFile(str(self.model.entries[rows[0].row()]))
+        return None
+
+    def refresh_preview_button(self, *args):
+        url = self.selected_preview_url()
+        playing = self.preview_seek is not None or self.player.playbackState() == QMediaPlayer.PlayingState
+        pause = playing and (url is None or self.player.source() == url)
+        self.preview_button.setEnabled(url is not None or pause)
+        self.preview_button.setText('⏸ Pause' if pause else '▶ Play')
+
+    def preview_auto_changed(self, checked):
+        if not checked:
+            self.preview_armed = False
+            self.preview_selection_timer.stop()
+
+    def preview_selection_changed(self, *args):
+        self.refresh_preview_button()
+        if self.preview_auto.isChecked() and self.preview_armed:
+            self.preview_selection_timer.start()
+
+    def preview_selection(self):
+        if (not self.isEnabled() or not self.preview_armed or not self.preview_auto.isChecked()
+                or self.model.projection is not None):
             return
-        path = self.model.entries[rows[0].row()]
-        url = QUrl.fromLocalFile(str(path))
-        if self.player.source() == url:
-            if self.player.playbackState() == QMediaPlayer.PlayingState:
-                self.player.pause()
-            else:
+        url = self.selected_preview_url()
+        if url is None:
+            self.pause_preview()
+        elif self.player.source() != url or (
+                self.player.playbackState() != QMediaPlayer.PlayingState and self.preview_seek is None):
+            self.start_preview(url)
+
+    def preview(self):
+        if self.model.projection is not None:
+            return
+        self.preview_selection_timer.stop()
+        url = self.selected_preview_url()
+        if (url is None or self.player.source() == url) and (
+                self.preview_seek is not None or self.player.playbackState() == QMediaPlayer.PlayingState):
+            self.preview_armed = False
+            self.pause_preview()
+        elif url is not None:
+            self.preview_armed = self.preview_auto.isChecked()
+            if (self.player.source() == url and
+                    self.player.playbackState() == QMediaPlayer.PausedState and self.preview_seek is None):
                 self.player.play()
-        else:
-            self.player.setSource(url)
+            else:
+                self.start_preview(url)
+        self.refresh_preview_button()
+
+    def start_preview(self, url):
+        self.player.stop()
+        self.player.setSource(QUrl())
+        self.cancel_preview_seek()
+        if self.preview_seconds.value():
+            self.audio.setVolume(0.0)
+            self.preview_seek = (self.preview_seconds.value() * 1000, time.monotonic(), None)
+            self.preview_seek_timer.start()
+        self.player.setSource(url)
+        if self.preview_seconds.value() == 0:
+            self.player.setPosition(0)
             self.player.play()
+        self.refresh_preview_button()
+
+    def apply_preview_seek(self):
+        if self.preview_seek is None:
+            return
+        requested, started, last_seek = self.preview_seek
+        now = time.monotonic()
+        if now - started >= 12:
+            self.pause_preview()
+            self.status.setText('Vorhörposition nicht erreichbar.' if self.window.lang == 'de'
+                                else 'Could not reach the preview position.')
+            self.refresh_preview_button()
+            return
+        if (self.player.mediaStatus() not in (QMediaPlayer.LoadedMedia, QMediaPlayer.BufferedMedia)
+                or self.player.duration() <= 0):
+            return
+        target = preview_position(requested, self.player.duration())
+        if target and not self.player.isSeekable():
+            return
+        if last_seek is None:
+            self.player.play()
+            if not target:
+                self.cancel_preview_seek()
+                self.refresh_preview_button()
+                return
+            self.preview_seek = (requested, started, now)
+            self.player.setPosition(target)
+        elif now - last_seek >= .15:
+            if self.player.position() >= target - 100:
+                self.cancel_preview_seek()
+                self.refresh_preview_button()
+            else:
+                self.preview_seek = (requested, started, now)
+                self.player.setPosition(target)
+
+    def cancel_preview_seek(self):
+        self.preview_seek_timer.stop()
+        self.preview_seek = None
+        self.audio.setVolume(self.window.user_volume)
+
+    def pause_preview(self):
+        if self.preview_seek is not None:
+            self.player.stop()
+            self.player.setSource(QUrl())
+        else:
+            self.player.pause()
+        self.cancel_preview_seek()
+        self.refresh_preview_button()
+
+    def clear_preview(self):
+        self.preview_armed = False
+        self.preview_selection_timer.stop()
+        self.player.stop()
+        self.player.setSource(QUrl())
+        self.cancel_preview_seek()
+        self.refresh_preview_button()
+
+    def preview_failed(self, *args):
+        self.cancel_preview_seek()
+        self.refresh_preview_button()
+        self.status.setText(self.player.errorString())
 
     def stop(self):
         self.drag_generation += 1
         self.motion.finish()
         if self.model.drag_rows is not None:
             self.model.cancel_drag()
-        self.player.stop()
-        self.player.setSource(QUrl())
+        self.clear_preview()
+        self.preview_auto.setChecked(False)
         self.metadata_active = False
         self.metadata = None
         self.pending_metadata = []

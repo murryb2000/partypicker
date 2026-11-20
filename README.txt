@@ -1,5 +1,7 @@
 PARTYPICKER / Der Playlist-Generator
-by MurryB · Version 2.2.4
+by MurryB · Version 2.2.5
+
+Im Playlist-Manager kannst du einen markierten Titel mit Play/Pause oder der Leertaste vorhören. „Vorhören ab“ legt den Startpunkt in Sekunden fest. Mit Caps Lock oder dem Haken „Automatisch vorhören“ folgt die Wiedergabe nach dem ersten Play-Klick der Auswahl. Eine Mehrfachauswahl pausiert, ein einzelner neu markierter Titel startet automatisch. Mit Pause hältst du die Automatik an.
 
 NEU IN VERSION 2.2.3
 Im Ordnerfenster ist Platz für fünf vollständige Titelzeilen. Der aktuelle Titel steht möglichst in der dritten sichtbaren Zeile.

@@ -235,5 +235,65 @@ class ManagerRemovalTests(unittest.TestCase):
         self.assertTrue(self.errors)
 
 
+class ManagerPreviewTests(unittest.TestCase):
+    setUp = fixture.PartyPickerTests.setUp
+    tearDown = fixture.PartyPickerTests.tearDown
+
+    def test_seek_pause_and_caps_lock_follow_on_real_audio(self):
+        import numpy as np
+        import soundfile as sf
+        from PySide6.QtCore import Qt
+        from PySide6.QtMultimedia import QMediaPlayer
+        from PySide6.QtTest import QTest
+
+        for path in (self.a, self.b):
+            sf.write(path, np.zeros(40 * 22050, dtype='float32'), 22050)
+        manager = self.w.manager
+        self.w.selected = [self.a, self.b]
+        self.w.show()
+        self.w.show_manager()
+        self.w.activateWindow()
+        APP.processEvents()
+        QTest.qWait(30)
+        manager.preview_seconds.setValue(15)
+        QTest.keyClick(manager.views[0], Qt.Key_CapsLock)
+        wait_for(manager.preview_auto.isChecked)
+        first, second = (manager.model.index(row) for row in (0, 1))
+        selection = manager.selection
+        selection.select(first, QItemSelectionModel.ClearAndSelect)
+        QTest.qWait(150)
+        self.assertTrue(manager.player.source().isEmpty())  # Still waiting for Play.
+        manager.preview_button.click()
+
+        def playing_at_offset(path):
+            return (manager.player.source().toLocalFile() == str(path)
+                    and manager.preview_seek is None
+                    and manager.player.playbackState() == QMediaPlayer.PlayingState
+                    and manager.player.position() >= 14900
+                    and manager.audio.volume() > 0)
+
+        wait_for(lambda: playing_at_offset(self.a), timeout=12)
+        selection.select(second, QItemSelectionModel.ClearAndSelect)
+        wait_for(lambda: playing_at_offset(self.b), timeout=12)
+        selection.select(first, QItemSelectionModel.Select)
+        wait_for(lambda: manager.player.playbackState() == QMediaPlayer.PausedState)
+        self.assertEqual(manager.player.source().toLocalFile(), str(self.b))
+        selection.select(second, QItemSelectionModel.ClearAndSelect)
+        wait_for(lambda: playing_at_offset(self.b), timeout=12)
+        manager.preview_button.click()
+        wait_for(lambda: manager.player.playbackState() == QMediaPlayer.PausedState)
+        selection.select(first, QItemSelectionModel.ClearAndSelect)
+        QTest.qWait(200)
+        self.assertEqual(manager.player.source().toLocalFile(), str(self.b))
+        self.assertFalse(manager.preview_armed)
+        self.w.language_box.setCurrentIndex(1)
+        self.assertEqual(manager.preview_start_label.text(), 'Preview from:')
+        self.assertIn('Caps Lock', manager.preview_auto.text())
+        self.w.show_picker()
+        self.assertTrue(manager.player.source().isEmpty())
+        self.assertFalse(manager.preview_auto.isChecked())
+        self.assertEqual(self.w.settings.value('manager_preview_seconds', type=int), 15)
+
+
 if __name__ == '__main__':
     unittest.main()
