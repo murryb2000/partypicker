@@ -1,6 +1,11 @@
 # PARTYPICKER / Der Playlist-Generator
 
 
+## Neu in Version 2.2.2
+
+Neben der Ordner-Überschrift steht ein Statusfilter: Keine, Ungehört, Übersprungen und Beides. Keine zeigt alle Titel. Beides zeigt ungehörte und übersprungene Titel; aufgenommene Titel werden bei aktiven Filtern ausgeblendet. Die Auswahl wird gespeichert. Ein Filterwechsel lässt den aktuellen Song weiterlaufen; Vorwärts/Rückwärts, automatisches Weiterschalten und Aufnehmen & weiter berücksichtigen den Filter. Gibt es keinen weiteren Treffer, stoppt die Wiedergabe mit einem Hinweis. Keine blendet wieder alle Titel ein.
+
+
 ## Neu in Version 2.2.1
 
 Im Playlist-Manager einen oder mehrere Titel markieren und Markierte Titel entfernen anklicken. Standardmäßig erscheint eine Bestätigung. Beim Entfernen nicht mehr nachfragen speichert deine Auswahl; durch Abwählen wird die Bestätigung wieder aktiviert. Es werden ausschließlich Playlist-Einträge entfernt, keine Musikdateien. Speicherung, drei Sicherungsstände und Rückgängig bleiben verfügbar.

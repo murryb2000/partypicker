@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.2.2 – 2026-11-20
+
+- Statusfilter als Pulldown-Menü im Ordnerfenster: Keine, Ungehört, Übersprungen und Beides.
+- Keine zeigt alle Titel; Beides zeigt ungehörte und übersprungene Titel. Aufgenommene Titel sind bei aktiven Filtern ausgeblendet.
+- Auswahl bleibt nach Neustart erhalten und wird vollständig auf Deutsch/Englisch angezeigt.
+- Manueller und automatischer Titelwechsel sowie Aufnehmen & weiter berücksichtigen den Filter. Wechseln des Filters unterbricht den aktuellen Song nicht.
+- Keine Treffer beziehungsweise kein weiterer passender Titel: klarer Hinweis, kein Start eines ausgeblendeten Titels.
+- Die vierte Zeile als Vorhörposition berücksichtigt nun drei vorherige sichtbare Titel.
+- Sieben zusätzliche Tests einschließlich 6000 Titeln, Statusänderungen, Wiederaufnahme und gefilterter Navigation.
+
 ## 2.2.1 – 2026-11-20
 
 - Playlist-Manager: „Markierte Titel entfernen“ für Einzel- und Mehrfachauswahl.

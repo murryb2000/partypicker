@@ -171,9 +171,19 @@ for language, additions in {'de': {'preview_start': 'Vorhören ab:', 'normalize'
 
 for language, additions in {
     'de': {'playlist_duration': 'Playlist-Dauer: {duration}',
+           'status_filter': 'Filter:', 'filter_none': 'Keine', 'filter_unheard': 'Ungehört',
+           'filter_skipped': 'Übersprungen', 'filter_both': 'Beides',
+           'filter_tip': 'Keine: alle Titel. Beides: ungehörte und übersprungene Titel; aufgenommene Titel bleiben ausgeblendet.',
+           'filter_count': 'Statusfilter: {shown} von {total} Titeln sichtbar',
+           'filter_finished': 'Keine weiteren Titel für diesen Filter. Wähle einen anderen Filter oder Ordner.',
            'selection_duration': '{count} markiert · Dauer: {duration}',
            'duration_pending': '{count} werden ermittelt', 'duration_unknown': '{count} unbekannt'},
     'en': {'playlist_duration': 'Playlist duration: {duration}',
+           'status_filter': 'Filter:', 'filter_none': 'None', 'filter_unheard': 'Unheard',
+           'filter_skipped': 'Skipped', 'filter_both': 'Both',
+           'filter_tip': 'None: all tracks. Both: unheard and skipped tracks; added tracks remain hidden.',
+           'filter_count': 'Status filter: {shown} of {total} tracks visible',
+           'filter_finished': 'No more tracks match this filter. Choose another filter or folder.',
            'selection_duration': '{count} selected · Duration: {duration}',
            'duration_pending': '{count} pending', 'duration_unknown': '{count} unknown'},
 }.items():
@@ -636,7 +646,23 @@ class Window(QMainWindow):
             box = QVBoxLayout(pane)
             pane_label = QLabel(label)
             self.pane_labels.append(pane_label)
-            box.addWidget(pane_label)
+            if widget is self.sources:
+                heading = QHBoxLayout()
+                heading.addWidget(pane_label)
+                heading.addStretch()
+                self.status_filter_label = QLabel(self.t('status_filter'))
+                heading.addWidget(self.status_filter_label)
+                self.status_filter = QComboBox()
+                for mode in ('none', 'unheard', 'skipped', 'both'):
+                    self.status_filter.addItem(self.t('filter_' + mode), mode)
+                mode = self.settings.value('status_filter', 'none', type=str)
+                self.status_filter.setCurrentIndex(max(0, self.status_filter.findData(mode)))
+                self.status_filter.setToolTip(self.t('filter_tip'))
+                self.status_filter.currentIndexChanged.connect(self.change_source_filter)
+                heading.addWidget(self.status_filter)
+                box.addLayout(heading)
+            else:
+                box.addWidget(pane_label)
             if widget is self.picks:
                 self.playlist_duration_label = ElidedLabel('')
                 self.playlist_duration_label.setStyleSheet('font-size:11px; color:#a9b7c6;')
@@ -918,6 +944,10 @@ class Window(QMainWindow):
         self.auto.setText(self.t('auto_next'))
         self.pane_labels[0].setText(self.t('folder_heading'))
         self.pane_labels[1].setText(self.t('playlist_heading'))
+        self.status_filter_label.setText(self.t('status_filter'))
+        self.status_filter.setToolTip(self.t('filter_tip'))
+        for index in range(self.status_filter.count()):
+            self.status_filter.setItemText(index, self.t('filter_' + self.status_filter.itemData(index)))
         self.remove_button.setText(self.t('remove'))
         self.undo_button.setText(self.t('undo'))
         self.preview_label.setText(self.t('preview_start'))
@@ -1304,6 +1334,7 @@ class Window(QMainWindow):
                 self.t('no_files_skipped', count=skipped) if skipped else self.t('no_files'))
             return
         self.tracks = files
+        self.index = -1
         self.source_rows = {path_key(p): i for i, p in enumerate(files)}
         self.sources.setUpdatesEnabled(False)
         self.source_fade.clear()
@@ -1336,6 +1367,9 @@ class Window(QMainWindow):
 
     def play_track(self, index):
         if 0 <= index < len(self.tracks):
+            found = self.find_source_track(index)
+            index = found if found is not None else len(self.tracks)
+        if 0 <= index < len(self.tracks):
             self.index = index
             item = self.sources.item(index)
             self.sources.setCurrentItem(item)
@@ -1348,13 +1382,25 @@ class Window(QMainWindow):
             self.settings.sync()
             self.play_path(self.tracks[index], folder_track=True)
         elif index >= len(self.tracks) and self.tracks:
+            self.play_token += 1
+            self.pending_seek = None
+            self.preview_timer.stop()
             self.player.stop()
-            self.statusBar().showMessage(self.t('folder_finished'))
+            self.statusBar().showMessage(self.t('filter_finished' if self.status_filter.currentData() != 'none' else 'folder_finished'))
 
     def position_source_track(self):
         """Keep three preceding tracks above the current folder track."""
         if 0 <= self.index < self.sources.count():
-            anchor = self.sources.item(max(0, self.index - 3))
+            if self.sources.item(self.index).isHidden():
+                return
+            anchor_row, count = self.index, 0
+            for row in range(self.index - 1, -1, -1):
+                if self.source_matches(row):
+                    anchor_row = row
+                    count += 1
+                    if count == 3:
+                        break
+            anchor = self.sources.item(anchor_row)
             self.sources.scrollToItem(anchor, QListWidget.PositionAtTop)
 
     def play_path(self, path, folder_track=False):
@@ -1614,6 +1660,45 @@ class Window(QMainWindow):
                 color = '#36dab5' if key in self.selected_keys else (
                     '#ffb454' if self.history.get(key) in ('heard', 'skipped') else '#8c97a5')
                 self.source_fade.change(item, color, animate=row in visible)
+        self.apply_source_filter(rows)
+
+    def source_matches(self, row):
+        mode = self.status_filter.currentData()
+        if mode == 'none':
+            return True
+        key = path_key(self.tracks[row])
+        if key in self.selected_keys:
+            return False
+        skipped = self.history.get(key) in ('heard', 'skipped')
+        return mode == 'both' or (mode == 'skipped' and skipped) or (mode == 'unheard' and not skipped)
+
+    def find_source_track(self, start, direction=1):
+        stop = len(self.tracks) if direction > 0 else -1
+        return next((row for row in range(start, stop, direction)
+                     if 0 <= row < len(self.tracks) and self.source_matches(row)), None)
+
+    def apply_source_filter(self, rows=None):
+        enabled = self.sources.updatesEnabled()
+        self.sources.setUpdatesEnabled(False)
+        try:
+            for row in range(len(self.tracks)) if rows is None else rows:
+                item = self.sources.item(row)
+                if item is not None:
+                    hidden = not self.source_matches(row)
+                    if item.isHidden() != hidden:
+                        item.setHidden(hidden)
+        finally:
+            self.sources.setUpdatesEnabled(enabled)
+
+    def change_source_filter(self):
+        self.settings.setValue('status_filter', self.status_filter.currentData())
+        self.apply_source_filter()
+        if 0 <= self.index < len(self.tracks) and self.source_matches(self.index):
+            self.position_source_track()
+        else:
+            self.sources.scrollToTop()
+        shown = sum(self.source_matches(row) for row in range(len(self.tracks)))
+        self.statusBar().showMessage(self.t('filter_count', shown=shown, total=len(self.tracks)))
 
     def reset_history(self):
         dialog = QMessageBox(self)
@@ -1647,10 +1732,13 @@ class Window(QMainWindow):
             self.commit(entries, ui_change=('move', row, target))
 
     def step(self, delta):
+        target = self.find_source_track(self.index + delta, 1 if delta > 0 else -1)
+        if target is None and delta < 0:
+            return
         path = self.current_path()
         if path and self.requested_folder_track and path_key(path) not in self.selected_keys:
             self.mark_history(path, 'skipped')
-        self.play_track(self.index + delta)
+        self.play_track(target if target is not None else len(self.tracks))
 
     def toggle(self):
         if self.player.playbackState() == QMediaPlayer.PlayingState:
