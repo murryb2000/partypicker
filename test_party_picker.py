@@ -43,7 +43,7 @@ class PlayerStub:
 
 
 class PartyPickerTests(unittest.TestCase):
-    def test_folder_playback_keeps_three_preceding_tracks_visible(self):
+    def test_folder_playback_keeps_two_preceding_tracks_visible(self):
         from PySide6.QtCore import QPoint
         self.w.show(); APP.processEvents()
         tracks = [self.root / f'Track {i:02}.flac' for i in range(40)]
@@ -53,7 +53,7 @@ class PartyPickerTests(unittest.TestCase):
             for index in (20, 21, 19, 22, 2, 0):
                 self.w.play_track(index); APP.processEvents()
                 top = self.w.sources.indexAt(QPoint(2, 2)).row()
-                self.assertEqual(top, max(0, index - 3))
+                self.assertEqual(top, max(0, index - 2))
                 self.assertEqual(self.w.sources.currentRow(), index)
             self.w.play_track(39); APP.processEvents()
             self.assertTrue(self.w.sources.viewport().rect().intersects(

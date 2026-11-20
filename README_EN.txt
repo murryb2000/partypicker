@@ -1,5 +1,8 @@
 PARTYPICKER / The Playlist Generator
-by MurryB · Version 2.2.2
+by MurryB · Version 2.2.3
+
+NEW IN VERSION 2.2.3
+The folder list has room for five full rows. The current track is positioned in the third visible row where possible.
 
 NEW IN VERSION 2.2.2
 The folder heading has a status filter: None, Unheard, Skipped, Both. None shows all tracks. Both shows unheard and skipped tracks; added tracks are excluded while a filter is active. Your selection is remembered. Changing the filter leaves the current song playing; next/previous, automatic advance and Add & continue follow the filter. If no more tracks match, playback stops with a message. Choose None to show everything again.

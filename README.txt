@@ -1,5 +1,8 @@
 PARTYPICKER / Der Playlist-Generator
-by MurryB · Version 2.2.2
+by MurryB · Version 2.2.3
+
+NEU IN VERSION 2.2.3
+Im Ordnerfenster ist Platz für fünf vollständige Titelzeilen. Der aktuelle Titel steht möglichst in der dritten sichtbaren Zeile.
 
 NEU IN VERSION 2.2.2
 Neben der Ordner-Überschrift steht ein Statusfilter: Keine, Ungehört, Übersprungen und Beides. Keine zeigt alle Titel. Beides zeigt ungehörte und übersprungene Titel; aufgenommene Titel werden bei aktiven Filtern ausgeblendet. Die Auswahl wird gespeichert. Ein Filterwechsel lässt den aktuellen Song weiterlaufen; Vorwärts/Rückwärts, automatisches Weiterschalten und Aufnehmen & weiter berücksichtigen den Filter. Gibt es keinen weiteren Treffer, stoppt die Wiedergabe mit einem Hinweis. Keine blendet wieder alle Titel ein.

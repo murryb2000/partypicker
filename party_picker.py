@@ -634,6 +634,8 @@ class Window(QMainWindow):
         splitter = QSplitter(Qt.Vertical)
         self.sources, self.picks = QListWidget(), QListWidget()
         self.sources.setUniformItemSizes(True)
+        self.sources.setVerticalScrollMode(QListWidget.ScrollPerItem)
+        self.update_folder_minimum_height()
         self.picks.setUniformItemSizes(True)
         self.source_fade = ColorFadeDelegate(self.sources)
         self.sources.setItemDelegate(self.source_fade)
@@ -677,6 +679,8 @@ class Window(QMainWindow):
                 box.addWidget(self.reset_history_button)
             box.addWidget(widget)
             splitter.addWidget(pane)
+        splitter.setCollapsible(0, False)
+        splitter.splitterMoved.connect(self.position_source_track)
         sidebar_layout.addWidget(splitter, 1)
         playlist_controls = QGridLayout()
         playlist_controls.setContentsMargins(9, 0, 9, 0)
@@ -1346,6 +1350,7 @@ class Window(QMainWindow):
             self.update_source_colors(animate=False)
         finally:
             self.sources.setUpdatesEnabled(True)
+        self.update_folder_minimum_height()
         self.refresh_count()
         if skipped:
             self.statusBar().showMessage(self.t('scan_skipped', count=skipped))
@@ -1388,8 +1393,18 @@ class Window(QMainWindow):
             self.player.stop()
             self.statusBar().showMessage(self.t('filter_finished' if self.status_filter.currentData() != 'none' else 'folder_finished'))
 
+    def update_folder_minimum_height(self):
+        """Allow five full rows even when the horizontal scrollbar is visible."""
+        self.sources.ensurePolished()
+        row_height = self.sources.sizeHintForRow(0)
+        if row_height <= 0:
+            row_height = self.sources.fontMetrics().height() + 14  # Item padding.
+        self.sources.setMinimumHeight(
+            5 * row_height + 2 * self.sources.frameWidth()
+            + self.sources.horizontalScrollBar().sizeHint().height())
+
     def position_source_track(self):
-        """Keep three preceding tracks above the current folder track."""
+        """Keep two preceding visible tracks above the current folder track."""
         if 0 <= self.index < self.sources.count():
             if self.sources.item(self.index).isHidden():
                 return
@@ -1398,7 +1413,7 @@ class Window(QMainWindow):
                 if self.source_matches(row):
                     anchor_row = row
                     count += 1
-                    if count == 3:
+                    if count == 2:
                         break
             anchor = self.sources.item(anchor_row)
             self.sources.scrollToItem(anchor, QListWidget.PositionAtTop)

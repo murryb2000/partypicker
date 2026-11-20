@@ -113,7 +113,7 @@ class StatusFilterTests(unittest.TestCase):
         self.assertEqual(self.shown(), [])
         self.assertIn('Keine weiteren Titel', self.w.statusBar().currentMessage())
 
-    def test_position_uses_three_visible_preceding_tracks(self):
+    def test_position_uses_two_visible_preceding_tracks(self):
         self.w.show(); APP.processEvents()
         files = [self.root/f'{i:02}.flac' for i in range(60)]
         self.w.tracks = files
@@ -124,7 +124,7 @@ class StatusFilterTests(unittest.TestCase):
         with patch.object(self.w, 'play_path'):
             self.w.play_track(20)
         APP.processEvents()
-        self.assertEqual(self.w.sources.indexAt(QPoint(2,2)).row(), 14)
+        self.assertEqual(self.w.sources.indexAt(QPoint(2,2)).row(), 16)
         self.assertEqual(self.w.sources.currentRow(), 20)
 
     def test_large_folder_filter_changes_remain_responsive(self):

@@ -1,5 +1,9 @@
 # PARTYPICKER / Der Playlist-Generator
 
+## Neu in Version 2.2.3
+
+Im Ordnerfenster ist Platz für fünf vollständige Titelzeilen. Der aktuelle Titel steht möglichst in der dritten sichtbaren Zeile.
+
 
 ## Neu in Version 2.2.2
 

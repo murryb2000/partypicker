@@ -20,6 +20,32 @@ class CompactLayoutTests(unittest.TestCase):
         APP.setStyleSheet(self.old_style)
         APP.processEvents()
 
+    def test_folder_splitter_keeps_five_full_rows_and_current_track_third(self):
+        from unittest.mock import patch
+        from PySide6.QtWidgets import QSplitter
+        self.w.resize(1128, 680)
+        self.w.show(); APP.processEvents()
+        files = [self.root / (f'Track {n:02} - ' + 'Long title ' * 18 + '.flac') for n in range(40)]
+        source = self.w.sources
+        source.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        with patch.object(self.w, 'play_path'):
+            self.w.scanned(files, '', 0, str(files[20]))
+            APP.processEvents()
+            splitter = source.parentWidget().parentWidget()
+            self.assertIsInstance(splitter, QSplitter)
+            splitter.setSizes([0, splitter.height()])
+            APP.processEvents()
+            self.w.play_track(20)
+            APP.processEvents()
+        viewport = source.viewport().rect()
+        self.assertEqual(source.indexAt(QPoint(2, 2)).row(), 18)
+        for row in range(18, 23):
+            rect = source.visualItemRect(source.item(row))
+            self.assertFalse(rect.isEmpty())
+            self.assertGreaterEqual(rect.top(), viewport.top())
+            self.assertLessEqual(rect.bottom(), viewport.bottom())
+        self.assertGreater(splitter.sizes()[0], 0)
+
     def test_long_text_does_not_increase_height_or_hide_waveform(self):
         title = 'Artist featuring Guests – ' + ('Very long song title remix edition ' * 60)
         path = 'Z:\\Music\\' + ('Very long directory\\' * 60) + 'Party Song.flac'

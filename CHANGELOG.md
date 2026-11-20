@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.3 – 2026-11-20
+
+- Das Ordnerfenster bietet Platz für mindestens fünf vollständige Titelzeilen, auch bei sichtbarer horizontaler Scrollleiste.
+- Der aktuelle Titel steht beim Wechsel möglichst in Zeile drei. Der Statusfilter zählt dabei nur sichtbare Titel.
+
 ## 2.2.2 – 2026-11-20
 
 - Statusfilter als Pulldown-Menü im Ordnerfenster: Keine, Ungehört, Übersprungen und Beides.
