@@ -266,7 +266,7 @@ class ManagerPreviewTests(unittest.TestCase):
         manager.preview_button.click()
 
         def playing_at_offset(path):
-            return (manager.player.source().toLocalFile() == str(path)
+            return (Path(manager.player.source().toLocalFile()) == path
                     and manager.preview_seek is None
                     and manager.player.playbackState() == QMediaPlayer.PlayingState
                     and manager.player.position() >= 14900
@@ -277,14 +277,14 @@ class ManagerPreviewTests(unittest.TestCase):
         wait_for(lambda: playing_at_offset(self.b), timeout=12)
         selection.select(first, QItemSelectionModel.Select)
         wait_for(lambda: manager.player.playbackState() == QMediaPlayer.PausedState)
-        self.assertEqual(manager.player.source().toLocalFile(), str(self.b))
+        self.assertEqual(Path(manager.player.source().toLocalFile()), self.b)
         selection.select(second, QItemSelectionModel.ClearAndSelect)
         wait_for(lambda: playing_at_offset(self.b), timeout=12)
         manager.preview_button.click()
         wait_for(lambda: manager.player.playbackState() == QMediaPlayer.PausedState)
         selection.select(first, QItemSelectionModel.ClearAndSelect)
         QTest.qWait(200)
-        self.assertEqual(manager.player.source().toLocalFile(), str(self.b))
+        self.assertEqual(Path(manager.player.source().toLocalFile()), self.b)
         self.assertFalse(manager.preview_armed)
         self.w.language_box.setCurrentIndex(1)
         self.assertEqual(manager.preview_start_label.text(), 'Preview from:')

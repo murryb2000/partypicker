@@ -628,9 +628,9 @@ class PlaylistManager(QWidget):
                 or self.window.selected != before or self.model.entries != before):
             return
         updated = [path for row, path in enumerate(before) if row not in rows]
-        removed = {str(before[row]) for row in rows} - {str(path) for path in updated}
+        removed = {Path(before[row]) for row in rows} - {Path(path) for path in updated}
         def done():
-            if self.player.source().toLocalFile() in removed:
+            if Path(self.player.source().toLocalFile()) in removed:
                 self.clear_preview()
             self.reload()
         if self.window.commit(updated, ui_change=('full',), on_success=done):
