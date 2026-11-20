@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.1 – 2026-11-20
+
+- Playlist-Manager: „Markierte Titel entfernen“ für Einzel- und Mehrfachauswahl.
+- Bestätigungsdialog ist standardmäßig aktiv. „Beim Entfernen nicht mehr nachfragen“ wird gespeichert und lässt sich wieder ausschalten.
+- Entfernt ausschließlich Playlist-Einträge; die Musikdateien bleiben erhalten. Änderungen werden gespeichert, gesichert und lassen sich rückgängig machen.
+- Laufendes Vorhören eines erfolgreich entfernten Eintrags wird beendet; fehlgeschlagenes Speichern erhält Einträge und Auswahl.
+
 ## 2.2 – 2026-11-19
 
 - Gesamtdauer der Playlist in PartyPicker und im Playlist-Manager; der Manager zeigt zusätzlich die Dauer markierter Titel.

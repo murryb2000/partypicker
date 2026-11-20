@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from PySide6.QtCore import QItemSelectionModel, QTimer
+from PySide6.QtWidgets import QMessageBox
 import test_party_picker as fixture
 from core import (save_playlist, save_text_playlist, read_playlist, playlist_backups,
                   path_key, format_duration, track_duration)
@@ -131,6 +132,107 @@ class DurationTests(unittest.TestCase):
                 self.assertIsNone(track_duration(self.a))
         self.assertEqual(format_duration(16*3600 + 35*60), '16:35:00')
         self.assertEqual(format_duration(100*3600), '100:00:00')
+
+
+class ManagerRemovalTests(unittest.TestCase):
+    setUp = fixture.PartyPickerTests.setUp
+    tearDown = fixture.PartyPickerTests.tearDown
+    save = fixture.PartyPickerTests.save
+
+    def prepare(self, entries):
+        self.w.playlist = self.root/'party.m3u'
+        self.save(entries)
+        self.w.manager.reload()
+        return self.w.manager
+
+    def select(self, manager, rows):
+        manager.selection.clearSelection()
+        for row in rows:
+            manager.selection.select(manager.model.index(row), QItemSelectionModel.Select)
+
+    def answer(self, yes, messages):
+        def click():
+            dialog = APP.activeModalWidget()
+            messages.append(dialog.text())
+            role = QMessageBox.AcceptRole if yes else QMessageBox.RejectRole
+            for button in dialog.buttons():
+                if dialog.buttonRole(button) == role:
+                    button.click()
+                    return
+            raise AssertionError('Confirmation button missing')
+        QTimer.singleShot(0, click)
+
+    def test_group_remove_confirmation_backup_and_undo(self):
+        third = self.root/'third.flac'
+        third.write_bytes(self.a.read_bytes())
+        entries = [self.a, self.b, third]
+        manager = self.prepare(entries)
+        self.assertFalse(manager.skip_remove_confirmation.isChecked())
+        self.assertFalse(manager.remove_button.isEnabled())
+        self.select(manager, [0, 2])
+        self.assertTrue(manager.remove_button.isEnabled())
+        messages = []
+        self.answer(False, messages)
+        manager.remove_selected()
+        self.assertEqual(self.w.selected, entries)
+        self.answer(True, messages)
+        manager.remove_selected()
+        wait_for(lambda: self.w.pending_save is None and not self.w.jobs)
+        self.assertIn('2 markierten Titel', messages[-1])
+        self.assertEqual(read_playlist(self.w.playlist), [self.b])
+        self.assertEqual(manager.model.entries, [self.b])
+        self.assertTrue(all(p.is_file() for p in entries))
+        self.assertEqual(read_playlist(playlist_backups(self.w.playlist)[-1]), entries)
+        manager.undo()
+        wait_for(lambda: self.w.pending_save is None and not self.w.jobs)
+        self.assertEqual(manager.model.entries, entries)
+        self.assertEqual(read_playlist(self.w.playlist), entries)
+
+    def test_single_remove_without_warning_and_persisted_option(self):
+        manager = self.prepare([self.a, self.b])
+        self.select(manager, [1])
+        manager.skip_remove_confirmation.setChecked(True)
+        with patch('playlist_manager.QMessageBox', side_effect=AssertionError('Unexpected warning')):
+            manager.remove_button.click()
+        wait_for(lambda: self.w.pending_save is None and not self.w.jobs)
+        self.assertEqual(manager.model.entries, [self.a])
+        self.assertTrue(self.b.is_file())
+        self.w.settings.sync()
+        other = fixture.Window()
+        try:
+            self.assertTrue(other.manager.skip_remove_confirmation.isChecked())
+            other.language_box.setCurrentIndex(1)
+            self.assertEqual(other.manager.remove_button.text(), 'Remove selected tracks')
+            self.assertIn('Do not ask', other.manager.skip_remove_confirmation.text())
+        finally:
+            other.close(); APP.processEvents()
+
+    def test_remove_all_and_reenable_confirmation(self):
+        manager = self.prepare([self.a, self.b])
+        manager.skip_remove_confirmation.setChecked(True)
+        manager.skip_remove_confirmation.setChecked(False)
+        self.select(manager, [0, 1])
+        messages = []
+        self.answer(True, messages)
+        manager.remove_selected()
+        wait_for(lambda: self.w.pending_save is None and not self.w.jobs)
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(read_playlist(self.w.playlist), [])
+        self.assertEqual(manager.model.entries, [])
+        self.assertFalse(manager.remove_button.isEnabled())
+
+    def test_failed_removal_preserves_entries_and_selection(self):
+        manager = self.prepare([self.a, self.b])
+        manager.skip_remove_confirmation.setChecked(True)
+        self.select(manager, [0])
+        with patch('party_picker.save_playlist', side_effect=OSError('NAS offline')):
+            manager.remove_selected()
+            wait_for(lambda: self.w.pending_save is None and not self.w.jobs)
+        self.assertEqual(manager.model.entries, [self.a, self.b])
+        self.assertEqual(read_playlist(self.w.playlist), [self.a, self.b])
+        self.assertEqual([i.row() for i in manager.selection.selectedRows()], [0])
+        self.assertTrue(manager.isEnabled())
+        self.assertTrue(self.errors)
 
 
 if __name__ == '__main__':

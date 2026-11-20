@@ -1,11 +1,7 @@
-# PartyPicker 2.2
+# PartyPicker 2.2.1
 
-- Playlist-Gesamtdauer in PartyPicker und im Playlist-Manager.
-- Der Manager zeigt zusätzlich die Dauer markierter Titel.
-- Ermittlung im Hintergrund; unbekannte beziehungsweise noch ausstehende Längen sind gekennzeichnet.
-- Automatisch bis zu drei ältere Playlist-Stände direkt neben der Playlist-Datei. Namen enthalten „.backup-“, Datum/Uhrzeit (UTC) und eine Kennung.
-- Gleiche Inhalte erzeugen keine weitere Sicherung. Bei einem Sicherungsfehler bleibt die bisherige Playlist erhalten.
-
-M3U/M3U8-Sicherungen über „Playlist öffnen“ laden und mit „Speichern unter“ wieder auf den gewünschten Playlist-Namen speichern. TXT-Sicherungen enthalten die frühere Titelliste als Text. Es werden nur Playlist-Dateien gesichert, keine Musikdateien.
+- Neuer Button „Markierte Titel entfernen“ im Playlist-Manager – für einzelne Titel und Gruppen.
+- Bestätigung vor dem Entfernen; über „Beim Entfernen nicht mehr nachfragen“ dauerhaft abschaltbar und jederzeit wieder einschaltbar.
+- Entfernt nur Playlist-Einträge, keine Musikdateien. Sofortige Speicherung, bis zu drei Sicherungsstände und Rückgängig bleiben verfügbar.
 
 ZIP vollständig entpacken und PartyPicker.exe starten. Die EXE ist weiterhin nicht digital signiert.

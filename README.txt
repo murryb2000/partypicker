@@ -1,5 +1,9 @@
 PARTYPICKER / Der Playlist-Generator
-by MurryB · Version 2.2
+by MurryB · Version 2.2.1
+
+NEU IN VERSION 2.2.1
+Im Playlist-Manager einen oder mehrere Titel markieren und Markierte Titel entfernen anklicken. Standardmäßig erscheint eine Bestätigung. Beim Entfernen nicht mehr nachfragen speichert deine Auswahl; durch Abwählen wird die Bestätigung wieder aktiviert. Es werden ausschließlich Playlist-Einträge entfernt, keine Musikdateien. Speicherung, drei Sicherungsstände und Rückgängig bleiben verfügbar.
+
 
 NEU IN VERSION 2.2
 Die Playlist-Dauer wird als Stunden:Minuten:Sekunden angezeigt. Im Manager steht zusätzlich die Dauer markierter Titel. Die Ermittlung läuft im Hintergrund. ≥ kennzeichnet eine noch unvollständige Summe; ausstehende und unbekannte Längen werden angegeben.

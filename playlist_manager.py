@@ -4,7 +4,8 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QAbstractListModel, QModelIndex, QMimeData, QItemSelectionModel, Signal, Slot, QUrl, QSize, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut, QPixmap, QPainter, QColor, QPen, QCursor, QGuiApplication
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-                               QListView, QAbstractItemView, QFileDialog, QScrollBar, QStyledItemDelegate)
+                               QListView, QAbstractItemView, QFileDialog, QScrollBar, QStyledItemDelegate,
+                               QCheckBox, QMessageBox)
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from tinytag import TinyTag
 from animations import RowMotion
@@ -494,6 +495,18 @@ class PlaylistManager(QWidget):
         bottom.addWidget(self.scroll_feedback)
         bottom.addStretch()
         layout.addLayout(bottom)
+        removal = QHBoxLayout()
+        self.remove_button = QPushButton()
+        self.remove_button.clicked.connect(self.remove_selected)
+        removal.addWidget(self.remove_button)
+        self.skip_remove_confirmation = QCheckBox()
+        settings = getattr(window, 'settings', None)
+        self.skip_remove_confirmation.setChecked(
+            settings.value('manager_skip_remove_confirmation', False, type=bool) if settings else False)
+        self.skip_remove_confirmation.toggled.connect(self.remember_remove_confirmation)
+        removal.addWidget(self.skip_remove_confirmation)
+        removal.addStretch()
+        layout.addLayout(removal)
         self.motion = RowMotion(self, self.views)
         self.drag_generation = 0
         self.model.modelReset.connect(self.reset_pages)
@@ -518,6 +531,64 @@ class PlaylistManager(QWidget):
 
     def refresh_undo(self):
         self.undo_button.setEnabled(bool(getattr(self.window, 'undo_stack', [])) and not getattr(self.window, 'save_job', None) and not getattr(self.window, 'duplicate_job', None))
+        self.refresh_remove_button()
+
+    def remember_remove_confirmation(self, checked):
+        settings = getattr(self.window, 'settings', None)
+        if settings is not None:
+            settings.setValue('manager_skip_remove_confirmation', checked)
+
+    def can_remove(self):
+        return (self.model.drag_rows is None and self.model.projection is None
+                and getattr(self.window, 'playlist', None) is not None
+                and not any(getattr(self.window, name, None) for name in
+                            ('save_job', 'pending_save', 'duplicate_job', 'loading_playlist', '_closing')))
+
+    def refresh_remove_button(self):
+        if hasattr(self, 'remove_button'):
+            self.remove_button.setEnabled(self.can_remove() and bool(self.selection.selectedRows()))
+
+    def remove_selected(self):
+        if not self.can_remove():
+            return
+        before = list(self.model.entries)
+        rows = {i.row() for i in self.selection.selectedRows() if 0 <= i.row() < len(before)}
+        if not rows or before != self.window.selected:
+            return
+        target = self.window.playlist
+        de = self.window.lang == 'de'
+        if not self.skip_remove_confirmation.isChecked():
+            dialog = QMessageBox(self)
+            dialog.setWindowTitle('PartyPicker')
+            dialog.setIcon(QMessageBox.Question)
+            if de:
+                text = ('Den markierten Titel aus der Playlist entfernen?' if len(rows) == 1 else
+                        f'Die {len(rows)} markierten Titel aus der Playlist entfernen?')
+                text += '\n\nDie Musikdateien werden nicht gelöscht.'
+            else:
+                text = ('Remove the selected track from the playlist?' if len(rows) == 1 else
+                        f'Remove the {len(rows)} selected tracks from the playlist?')
+                text += '\n\nThe music files will not be deleted.'
+            dialog.setText(text)
+            yes = dialog.addButton('Entfernen' if de else 'Remove', QMessageBox.AcceptRole)
+            no = dialog.addButton('Abbrechen' if de else 'Cancel', QMessageBox.RejectRole)
+            dialog.setDefaultButton(no)
+            dialog.exec()
+            if dialog.clickedButton() is not yes:
+                return
+        # A nested dialog can process imports or other pending GUI work.
+        if (not self.can_remove() or self.window.playlist != target
+                or self.window.selected != before or self.model.entries != before):
+            return
+        updated = [path for row, path in enumerate(before) if row not in rows]
+        removed = {str(before[row]) for row in rows} - {str(path) for path in updated}
+        def done():
+            if self.player.source().toLocalFile() in removed:
+                self.player.stop()
+                self.player.setSource(QUrl())
+            self.reload()
+        if self.window.commit(updated, ui_change=('full',), on_success=done):
+            self.setEnabled(False)
 
     def retranslate(self):
         de = self.window.lang == 'de'
@@ -526,6 +597,9 @@ class PlaylistManager(QWidget):
         self.go_start.setToolTip('Ansicht zum ersten Titel bewegen' if de else 'Scroll to the first track')
         self.go_end.setToolTip('Ansicht zum letzten Titel bewegen' if de else 'Scroll to the last track')
         self.undo_button.setText('Rückgängig [Strg+Z]' if de else 'Undo [Ctrl+Z]')
+        self.remove_button.setText('Markierte Titel entfernen' if de else 'Remove selected tracks')
+        self.remove_button.setToolTip('Entfernt nur Playlist-Einträge, keine Musikdateien' if de else 'Removes playlist entries only, not music files')
+        self.skip_remove_confirmation.setText('Beim Entfernen nicht mehr nachfragen' if de else 'Do not ask when removing tracks')
         self.to_start.setText('An den Anfang' if de else 'Move to beginning')
         self.to_end.setText('Ans Ende' if de else 'Move to end')
         self.back.setText('← Zurück zum PartyPicker' if de else '← Back to PartyPicker')
@@ -538,6 +612,7 @@ class PlaylistManager(QWidget):
     def refresh_duration_summary(self, *args):
         if not hasattr(self, 'selection'):
             return
+        self.refresh_remove_button()
         if self.model.drag_rows is not None:
             rows = self.model.drag_rows
         else:

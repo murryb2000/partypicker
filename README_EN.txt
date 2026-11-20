@@ -1,5 +1,9 @@
 PARTYPICKER / The Playlist Generator
-by MurryB · Version 2.2
+by MurryB · Version 2.2.1
+
+NEW IN VERSION 2.2.1
+In the playlist manager, select one or more tracks and click Remove selected tracks. Confirmation is enabled by default. Do not ask when removing tracks saves your preference; untick it to enable confirmations again. Only playlist entries are removed; music files are preserved. Saving, three backups and Undo remain available.
+
 
 NEW IN VERSION 2.2
 Playlist duration is displayed as hours:minutes:seconds. The manager also shows the duration of selected tracks. Durations are read in the background; ≥ means that the sum is incomplete while tracks are pending or unavailable.
